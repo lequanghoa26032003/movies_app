@@ -5,8 +5,8 @@ import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
-import android.text.TextWatcher;
 import android.text.Editable;
+import android.text.TextWatcher;
 import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
@@ -19,22 +19,25 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.core.content.res.ResourcesCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Domain.ListFilm;
+import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.R;
+import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
-
 public class MainActivity extends AppCompatActivity {
     private RecyclerView.Adapter adapterNewMovies, adapterUpComing, adapterSearchResults;
     private RecyclerView recyclerViewNewMovies, recyclerViewUpComing, homeSearchRecyclerView;
@@ -49,7 +52,8 @@ public class MainActivity extends AppCompatActivity {
     private Drawable closeIcon;
 
     // Bottom Navigation Components
-    private ImageView btnHistory, btnFavorites, btnSearch, btnProfile;
+    private BottomAppBar bottomAppBar;
+    private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
 
     @Override
@@ -73,11 +77,15 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void initViews() {
+        // ✅ THÊM BottomAppBar reference
+        bottomAppBar = findViewById(R.id.app_bar);
+
         // Bottom navigation views
         btnHistory = findViewById(R.id.btn_history);
         btnFavorites = findViewById(R.id.btn_favorites);
         btnSearch = findViewById(R.id.btn_search);
         btnProfile = findViewById(R.id.btn_profile);
+        btnMain = findViewById(R.id.btn_center);
         fabHome = findViewById(R.id.fab_home);
 
         // Content views
@@ -102,35 +110,80 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
-            startActivity(intent);
-            finish();
+            // ✅ Sử dụng helper
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.HISTORY_POSITION
+            );
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+                startActivity(intent);
+            }, 100);
+        });
+        btnFavorites.setOnClickListener(v -> {
+            // ✅ Sử dụng helper
+
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.FAVORITES_POSITION
+            );
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(MainActivity.this, FavoriteActivity.class);
+                startActivity(intent);
+            }, 100);
+        });
+        fabHome.setOnClickListener(v -> {
+            bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, MainActivity.class);
+                startActivity(intent);
+                finish();
+            }, 100);
         });
 
-        btnFavorites.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, FavoriteActivity.class);
-            startActivity(intent);
-            finish();
-        });
+
 
         btnSearch.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, ExploreActivity.class);
-            startActivity(intent);
-            finish();
+            // ✅ Sử dụng helper
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.SEARCH_POSITION
+            );
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(MainActivity.this, ExploreActivity.class);
+                startActivity(intent);
+            }, 100);
         });
 
+        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
         btnProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
-            startActivity(intent);
-            finish();
+            // ✅ Sử dụng helper
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.PROFILE_POSITION
+            );
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+                startActivity(intent);
+            }, 1000);
         });
 
-        fabHome.setOnClickListener(v -> {
-            // Đã ở Home rồi, scroll to top
-            if (findViewById(R.id.mainScrollView) != null) {
-                findViewById(R.id.mainScrollView).scrollTo(0, 0);
-            }
-        });
+
+    }
+
+    // ✅ THÊM METHOD HELPER chuyển đổi dp sang px
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     private void setupSearchListeners() {

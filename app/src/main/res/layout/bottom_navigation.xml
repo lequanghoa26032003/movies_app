@@ -1,15 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <androidx.coordinatorlayout.widget.CoordinatorLayout xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/bottomNavigation"
     android:layout_width="match_parent"
-    android:layout_height="100dp">
+    android:layout_height="76dp">
 
     <com.google.android.material.bottomappbar.BottomAppBar
         android:id="@+id/app_bar"
         android:layout_width="match_parent"
-        android:layout_height="60dp"
+        android:layout_height="76dp"
         android:layout_gravity="bottom"
-        android:backgroundTint="#282f32">
+        android:backgroundTint="#282f32"
+        app:fabCradleMargin="8dp"
+        app:fabCradleRoundedCornerRadius="12dp"
+        app:fabCradleVerticalOffset="6dp"
+        app:fabAlignmentMode="center"
+        app:fabAnimationMode="slide">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -23,9 +29,9 @@
                 android:layout_gravity="center_vertical"
                 android:layout_margin="5dp"
                 android:layout_weight="0.2"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
                 app:srcCompat="@drawable/ic_history"
                 app:tint="@android:color/white" />
 
@@ -36,10 +42,10 @@
                 android:layout_gravity="center_vertical"
                 android:layout_margin="5dp"
                 android:layout_weight="0.2"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                app:srcCompat="@drawable/btn_4"
+                app:srcCompat="@drawable/btn_2"
                 app:tint="@android:color/white" />
 
             <ImageView
@@ -47,8 +53,13 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center_vertical"
+                android:layout_margin="5dp"
                 android:layout_weight="0.2"
-                android:visibility="invisible" />
+                android:clickable="true"
+                android:focusable="true"
+                android:elevation="32dp"
+                app:srcCompat="@drawable/ic_home"
+                app:tint="@android:color/white" />
 
             <ImageView
                 android:id="@+id/btn_search"
@@ -57,9 +68,9 @@
                 android:layout_gravity="center_vertical"
                 android:layout_margin="5dp"
                 android:layout_weight="0.2"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
                 app:srcCompat="@drawable/btn_1"
                 app:tint="@android:color/white" />
 
@@ -70,20 +81,28 @@
                 android:layout_gravity="center_vertical"
                 android:layout_margin="5dp"
                 android:layout_weight="0.2"
+                android:background="?android:attr/selectableItemBackgroundBorderless"
                 android:clickable="true"
                 android:focusable="true"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                app:srcCompat="@drawable/btn_2"
+                app:srcCompat="@drawable/btn_4"
                 app:tint="@android:color/white" />
+
         </LinearLayout>
+
     </com.google.android.material.bottomappbar.BottomAppBar>
 
     <com.google.android.material.floatingactionbutton.FloatingActionButton
         android:id="@+id/fab_home"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        app:maxImageSize="30dp"
+        style="@style/Floating"
         app:layout_anchor="@id/app_bar"
-        style="@style/Floating" />
+        android:layout_marginTop="8dp"
+        app:maxImageSize="30dp"
+        android:clickable="false"
+        android:focusable="false"
+        app:elevation="32dp"
+        android:translationZ="32dp"
+        android:stateListAnimator="@null" />
 
 </androidx.coordinatorlayout.widget.CoordinatorLayout>

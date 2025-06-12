@@ -13,7 +13,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public abstract class BaseActivity extends AppCompatActivity {
 
-    protected ImageView btnHistory, btnFavorites, btnSearch, btnProfile;
+    protected ImageView btnMain,btnHistory, btnFavorites, btnSearch, btnProfile;
     protected FloatingActionButton fabHome;
     protected ConstraintLayout mainContainer;
 
@@ -42,6 +42,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         btnFavorites = findViewById(R.id.btn_favorites);
         btnSearch = findViewById(R.id.btn_search);
         btnProfile = findViewById(R.id.btn_profile);
+        btnMain = findViewById(R.id.btn_center);
         fabHome = findViewById(R.id.fab_home);
     }
 
@@ -93,4 +94,5 @@ public abstract class BaseActivity extends AppCompatActivity {
         btnSearch.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
         btnProfile.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
     }
+
 }

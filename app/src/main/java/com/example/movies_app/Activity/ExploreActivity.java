@@ -40,8 +40,10 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Domain.ListFilm;
+import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.Helper.FilterManager;
 import com.example.movies_app.R;
+import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
 
@@ -62,14 +64,14 @@ public class ExploreActivity extends AppCompatActivity {
     private ImageView filterBtn;
     private FilterManager filterManager;
     private Drawable closeIcon;
+    private BottomAppBar bottomAppBar;
 
     // Content sections
     private LinearLayout trendingSection, categorySection;
 
     // Bottom Navigation Components
-    private ImageView btnHistory, btnFavorites, btnSearch, btnProfile;
+    private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
-
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -82,6 +84,7 @@ public class ExploreActivity extends AppCompatActivity {
         setupSearchListeners();
         focusSearchBox();
         loadTrendingMovies();
+        setFabToExplorePosition();
 
         // Setup close icon
         closeIcon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_close, null);
@@ -103,6 +106,8 @@ public class ExploreActivity extends AppCompatActivity {
         filterBtn = findViewById(R.id.exploreFilterBtn);
 
         // Content sections
+        bottomAppBar = findViewById(R.id.app_bar);
+
         trendingSection = findViewById(R.id.trendingSection);
         categorySection = findViewById(R.id.categorySection);
 
@@ -120,38 +125,56 @@ public class ExploreActivity extends AppCompatActivity {
         btnSearch = findViewById(R.id.btn_search);
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
+        btnMain = findViewById(R.id.btn_center);
+
     }
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            Intent intent = new Intent(this, HistoryActivity.class);
-            startActivity(intent);
-            finish();
+
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, HistoryActivity.class);
+                startActivity(intent);
+            }, 1000);
+        });
+        btnFavorites.setOnClickListener(v -> {
+
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, FavoriteActivity.class);
+                startActivity(intent);
+            }, 1000);
+        });
+        btnMain.setOnClickListener(v -> {
+            bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, MainActivity.class);
+                startActivity(intent);
+                finish();
+            }, 1000);
         });
 
-        btnFavorites.setOnClickListener(v -> {
-            Intent intent = new Intent(this, FavoriteActivity.class);
-            startActivity(intent);
-            finish();
-        });
+
 
         btnSearch.setOnClickListener(v -> {
-            // Đã ở Search/Explore rồi, focus search box
-            focusSearchBox();
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ExploreActivity.class);
+                startActivity(intent);
+            }, 1000);
         });
 
+        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
         btnProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ProfileActivity.class);
-            startActivity(intent);
-            finish();
-        });
 
-        fabHome.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MainActivity.class);
-            startActivity(intent);
-            finish();
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ProfileActivity.class);
+                startActivity(intent);
+            }, 1000);
         });
     }
+
 
     private void highlightCurrentTab() {
         int whiteColor = ContextCompat.getColor(this, android.R.color.white);
@@ -481,5 +504,13 @@ public class ExploreActivity extends AppCompatActivity {
         searchEditText.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
+    }
+    private void setFabToExplorePosition() {
+        // ✅ Sử dụng helper
+        BaseBottomNavigationHelper.setFabPosition(
+                bottomAppBar,
+                fabHome,
+                BaseBottomNavigationHelper.SEARCH_POSITION
+        );
     }
 }

@@ -4,11 +4,15 @@ import android.content.Intent;
 import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.widget.ImageView;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
+import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.R;
+import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class FavoriteActivity extends AppCompatActivity {
@@ -16,8 +20,9 @@ public class FavoriteActivity extends AppCompatActivity {
     private RecyclerView favoriteRecyclerView;
 
     // Bottom Navigation Components
-    private ImageView btnHistory, btnFavorites, btnSearch, btnProfile;
+    private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
+    private BottomAppBar bottomAppBar;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -28,11 +33,13 @@ public class FavoriteActivity extends AppCompatActivity {
         setupBottomNavigation();
         highlightCurrentTab();
         loadFavoriteMovies();
+        setFabToFavoritePosition();
     }
 
     private void initViews() {
         favoriteRecyclerView = findViewById(R.id.favoriteRecyclerView);
         favoriteRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        bottomAppBar = findViewById(R.id.app_bar);
 
         // Bottom Navigation Views
         btnHistory = findViewById(R.id.btn_history);
@@ -40,38 +47,64 @@ public class FavoriteActivity extends AppCompatActivity {
         btnSearch = findViewById(R.id.btn_search);
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
+        btnMain = findViewById(R.id.btn_center);
+
     }
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            Intent intent = new Intent(this, HistoryActivity.class);
-            startActivity(intent);
-            finish();
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, HistoryActivity.class);
+                startActivity(intent);
+            }, 100);
+        });
+        btnFavorites.setOnClickListener(v -> {
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, FavoriteActivity.class);
+                startActivity(intent);
+            }, 100);
+        });
+        btnMain.setOnClickListener(v -> {
+            bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, MainActivity.class);
+                startActivity(intent);
+                finish();
+            }, 100);
         });
 
-        btnFavorites.setOnClickListener(v -> {
-            // Đã ở Favorites rồi, không làm gì
-        });
+
 
         btnSearch.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ExploreActivity.class);
-            startActivity(intent);
-            finish();
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ExploreActivity.class);
+                startActivity(intent);
+            }, 100);
         });
 
+        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
         btnProfile.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ProfileActivity.class);
-            startActivity(intent);
-            finish();
+
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ProfileActivity.class);
+                startActivity(intent);
+            }, 100);
         });
 
-        fabHome.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MainActivity.class);
-            startActivity(intent);
-            finish();
-        });
+
     }
-
+    private void setFabToFavoritePosition() {
+        BaseBottomNavigationHelper.setFabPosition(
+                bottomAppBar,
+                fabHome,
+                BaseBottomNavigationHelper.FAVORITES_POSITION
+        );
+    }
     private void highlightCurrentTab() {
         // Reset all icons to white
         int whiteColor = ContextCompat.getColor(this, android.R.color.white);

@@ -5,9 +5,13 @@ import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.widget.ImageView;
 import android.widget.TextView;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.core.content.ContextCompat;
+
+import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.R;
+import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public class ProfileActivity extends AppCompatActivity {
@@ -16,7 +20,8 @@ public class ProfileActivity extends AppCompatActivity {
     private TextView userName, userEmail;
 
     // Bottom Navigation Components
-    private ImageView btnHistory, btnFavorites, btnSearch, btnProfile;
+    private BottomAppBar bottomAppBar;
+    private ImageView btnMain,btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
 
     @Override
@@ -28,6 +33,9 @@ public class ProfileActivity extends AppCompatActivity {
         setupBottomNavigation();
         highlightCurrentTab();
         loadUserProfile();
+
+        // ✅ THÊM: Set FAB ở vị trí Profile khi activity load
+        setFabToProfilePosition();
     }
 
     private void initViews() {
@@ -35,42 +43,77 @@ public class ProfileActivity extends AppCompatActivity {
         userName = findViewById(R.id.userName);
         userEmail = findViewById(R.id.userEmail);
 
+        // ✅ THÊM BottomAppBar reference
+        bottomAppBar = findViewById(R.id.app_bar);
+
         // Bottom Navigation Views
         btnHistory = findViewById(R.id.btn_history);
         btnFavorites = findViewById(R.id.btn_favorites);
         btnSearch = findViewById(R.id.btn_search);
         btnProfile = findViewById(R.id.btn_profile);
+        btnMain = findViewById(R.id.btn_center);
         fabHome = findViewById(R.id.fab_home);
     }
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            Intent intent = new Intent(this, HistoryActivity.class);
-            startActivity(intent);
-            finish();
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, HistoryActivity.class);
+                startActivity(intent);
+            }, 1000);
+        });
+        btnFavorites.setOnClickListener(v -> {
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, FavoriteActivity.class);
+                startActivity(intent);
+            }, 1000);
+        });
+        btnMain.setOnClickListener(v -> {
+            bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, MainActivity.class);
+                startActivity(intent);
+                finish();
+            }, 1000);
         });
 
-        btnFavorites.setOnClickListener(v -> {
-            Intent intent = new Intent(this, FavoriteActivity.class);
-            startActivity(intent);
-            finish();
-        });
+
 
         btnSearch.setOnClickListener(v -> {
-            Intent intent = new Intent(this, ExploreActivity.class);
-            startActivity(intent);
-            finish();
+
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ExploreActivity.class);
+                startActivity(intent);
+            }, 1000);
         });
 
+        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
         btnProfile.setOnClickListener(v -> {
-            // Đã ở Profile rồi, không làm gì
+            // ✅ Sử dụng helper
+            fabHome.postDelayed(() -> {
+                Intent intent = new Intent(this, ProfileActivity.class);
+                startActivity(intent);
+            }, 1000);
         });
+    }
 
-        fabHome.setOnClickListener(v -> {
-            Intent intent = new Intent(this, MainActivity.class);
-            startActivity(intent);
-            finish();
-        });
+    // ✅ THÊM METHOD MỚI
+    private void setFabToProfilePosition() {
+        // ✅ Sử dụng helper
+        BaseBottomNavigationHelper.setFabPosition(
+                bottomAppBar,
+                fabHome,
+                BaseBottomNavigationHelper.PROFILE_POSITION
+        );
+    }
+
+    // ✅ THÊM METHOD HELPER
+    private int dpToPx(int dp) {
+        float density = getResources().getDisplayMetrics().density;
+        return Math.round(dp * density);
     }
 
     private void highlightCurrentTab() {
