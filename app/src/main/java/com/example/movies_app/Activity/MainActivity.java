@@ -32,11 +32,13 @@ import com.android.volley.RequestQueue;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.movies_app.Adapter.FilmListAdapter;
+import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Domain.ListFilm;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.gson.Gson;
+
 public class MainActivity extends AppCompatActivity {
     private RecyclerView.Adapter adapterNewMovies, adapterUpComing, adapterSearchResults;
     private RecyclerView recyclerViewNewMovies, recyclerViewUpComing, homeSearchRecyclerView;
@@ -59,7 +61,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
-
+        initializeDatabase();
         initViews();
         setupBottomNavigation();
         setupSearchListeners();
@@ -74,7 +76,18 @@ public class MainActivity extends AppCompatActivity {
         }
         hideCloseIcon();
     }
-
+    private void initializeDatabase() {
+        new Thread(() -> {
+            try {
+                AppDatabase db = AppDatabase.getInstance(this);
+                // Kích hoạt database bằng cách thực hiện một truy vấn
+                db.userDao().getAllUsers();
+                Log.d("Database", "Database initialized successfully");
+            } catch (Exception e) {
+                Log.e("Database", "Error initializing database: " + e.getMessage());
+            }
+        }).start();
+    }
     private void initViews() {
         // ✅ THÊM BottomAppBar reference
         bottomAppBar = findViewById(R.id.app_bar);
