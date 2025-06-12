@@ -37,7 +37,11 @@ public class User {
 
     private String avatarUrl;
 
-    // Constructor
+    // ✅ THÊM TRƯỜNG ROLE
+    @NonNull
+    private String role = "USER";  // USER hoặc ADMIN
+
+    // Constructor cũ - giữ nguyên để không lỗi
     public User(@NonNull String email, @NonNull String username,
                 @NonNull String passwordHash, String fullName, String phoneNumber,
                 String registrationDate) {
@@ -48,9 +52,24 @@ public class User {
         this.phoneNumber = phoneNumber;
         this.registrationDate = registrationDate;
         this.accountStatus = 1;
+        this.role = "USER"; // Mặc định là USER
     }
 
-    // Getters and Setters
+    // Constructor mới có role
+    public User(@NonNull String email, @NonNull String username,
+                @NonNull String passwordHash, String fullName, String phoneNumber,
+                String registrationDate, @NonNull String role) {
+        this.email = email;
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.fullName = fullName;
+        this.phoneNumber = phoneNumber;
+        this.registrationDate = registrationDate;
+        this.accountStatus = 1;
+        this.role = role;
+    }
+
+    // Getters and Setters (giữ nguyên các getter/setter cũ và thêm mới)
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
 
@@ -84,5 +103,17 @@ public class User {
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
+    // ✅ THÊM GETTER/SETTER CHO ROLE
+    @NonNull
+    public String getRole() { return role; }
+    public void setRole(@NonNull String role) { this.role = role; }
 
+    // ✅ THÊM CÁC PHƯƠNG THỨC TIỆN ÍCH
+    public boolean isAdmin() {
+        return "ADMIN".equals(this.role);
+    }
+
+    public boolean isUser() {
+        return "USER".equals(this.role);
+    }
 }

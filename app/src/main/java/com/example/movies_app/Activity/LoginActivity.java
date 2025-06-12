@@ -66,11 +66,19 @@ public class LoginActivity extends AppCompatActivity {
                                 .putInt("user_id", user.getUserId())
                                 .putString("username", user.getUsername())
                                 .putString("email", user.getEmail())
+                                .putString("role", user.getRole()) // ✅ THÊM ROLE
                                 .putBoolean("is_logged_in", true)
                                 .apply();
 
                         Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
-                        Intent intent = new Intent(LoginActivity.this, MainActivity.class);
+
+                        // ✅ PHÂN QUYỀN CHUYỂN TRANG
+                        Intent intent;
+                        if (user.isAdmin()) {
+                            intent = new Intent(LoginActivity.this, AdminActivity.class);
+                        } else {
+                            intent = new Intent(LoginActivity.this, MainActivity.class);
+                        }
                         startActivity(intent);
                         finish();
                     } else {
