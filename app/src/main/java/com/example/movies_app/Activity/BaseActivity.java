@@ -9,28 +9,30 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
 import com.example.movies_app.R;
+import com.example.movies_app.Helper.BaseBottomNavigationHelper;
+import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 public abstract class BaseActivity extends AppCompatActivity {
 
     protected ImageView btnMain,btnHistory, btnFavorites, btnSearch, btnProfile;
     protected FloatingActionButton fabHome;
+    protected BottomAppBar bottomAppBar;
     protected ConstraintLayout mainContainer;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
 
-        // Tạo layout chính với bottom navigation
         setContentView(R.layout.activity_base);
-
-        // Inflate nội dung con vào container
         mainContainer = findViewById(R.id.content_container);
         LayoutInflater.from(this).inflate(getContentLayoutId(), mainContainer, true);
 
         initBottomNavigation();
         setupBottomNavigation();
-        highlightCurrentTab();
+        setupCurrentTabFabPosition();
+        highlightCurrentTab(); // ✅ Method này cần được thêm vào
     }
 
     // Method abstract để activity con override
@@ -44,6 +46,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_profile);
         btnMain = findViewById(R.id.btn_center);
         fabHome = findViewById(R.id.fab_home);
+        bottomAppBar = findViewById(R.id.app_bar);
     }
 
     private void setupBottomNavigation() {
@@ -54,6 +57,32 @@ public abstract class BaseActivity extends AppCompatActivity {
         fabHome.setOnClickListener(v -> navigateToActivity(MainActivity.class));
     }
 
+    private void setupCurrentTabFabPosition() {
+        String currentTab = getCurrentTab();
+        float position;
+
+        switch (currentTab) {
+            case "history":
+                position = BaseBottomNavigationHelper.HISTORY_POSITION;
+                break;
+            case "favorites":
+                position = BaseBottomNavigationHelper.FAVORITES_POSITION;
+                break;
+            case "search":
+                position = BaseBottomNavigationHelper.SEARCH_POSITION;
+                break;
+            case "profile":
+                position = BaseBottomNavigationHelper.PROFILE_POSITION;
+                break;
+            case "home":
+            default:
+                position = BaseBottomNavigationHelper.CENTER_POSITION;
+                break;
+        }
+
+        BaseBottomNavigationHelper.setFabPositionImmediate(bottomAppBar, fabHome, position);
+    }
+
     private void navigateToActivity(Class<?> activityClass) {
         if (!this.getClass().equals(activityClass)) {
             Intent intent = new Intent(this, activityClass);
@@ -62,6 +91,7 @@ public abstract class BaseActivity extends AppCompatActivity {
         }
     }
 
+    // ✅ THÊM 2 METHOD NÀY VÀO:
     private void highlightCurrentTab() {
         resetAllIcons();
 
@@ -95,4 +125,9 @@ public abstract class BaseActivity extends AppCompatActivity {
         btnProfile.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
     }
 
+    @Override
+    public void finish() {
+        super.finish();
+        overridePendingTransition(android.R.anim.fade_in, android.R.anim.fade_out);
+    }
 }

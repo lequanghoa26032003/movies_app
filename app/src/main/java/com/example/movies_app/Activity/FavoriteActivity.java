@@ -53,53 +53,60 @@ public class FavoriteActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.HISTORY_POSITION
+            );
 
             fabHome.postDelayed(() -> {
                 Intent intent = new Intent(this, HistoryActivity.class);
                 startActivity(intent);
-            }, 100);
+            }, 200); // Giảm delay xuống 200ms
         });
-        btnFavorites.setOnClickListener(v -> {
+
+        btnSearch.setOnClickListener(v -> {
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.SEARCH_POSITION
+            );
 
             fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, FavoriteActivity.class);
+                Intent intent = new Intent(this, ExploreActivity.class);
                 startActivity(intent);
-            }, 100);
+            }, 200);
         });
+
         btnMain.setOnClickListener(v -> {
-            bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.CENTER_POSITION
+            );
 
             fabHome.postDelayed(() -> {
                 Intent intent = new Intent(this, MainActivity.class);
                 startActivity(intent);
                 finish();
-            }, 100);
+            }, 200);
         });
 
-
-
-        btnSearch.setOnClickListener(v -> {
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, ExploreActivity.class);
-                startActivity(intent);
-            }, 100);
-        });
-
-        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
         btnProfile.setOnClickListener(v -> {
-
+            BaseBottomNavigationHelper.setFabPosition(
+                    bottomAppBar,
+                    fabHome,
+                    BaseBottomNavigationHelper.PROFILE_POSITION
+            );
 
             fabHome.postDelayed(() -> {
                 Intent intent = new Intent(this, ProfileActivity.class);
                 startActivity(intent);
-            }, 100);
+            }, 200);
         });
-
-
     }
     private void setFabToFavoritePosition() {
-        BaseBottomNavigationHelper.setFabPosition(
+        BaseBottomNavigationHelper.setFabPositionImmediate(
                 bottomAppBar,
                 fabHome,
                 BaseBottomNavigationHelper.FAVORITES_POSITION

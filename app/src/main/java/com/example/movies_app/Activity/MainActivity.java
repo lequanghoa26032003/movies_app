@@ -33,7 +33,6 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Domain.ListFilm;
-import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -110,33 +109,31 @@ public class MainActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            // ✅ Sử dụng helper
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.HISTORY_POSITION
-            );
 
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
-                startActivity(intent);
-            }, 100);
+            Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
+            startActivity(intent);
         });
+
         btnFavorites.setOnClickListener(v -> {
-            // ✅ Sử dụng helper
 
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.FAVORITES_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(MainActivity.this, FavoriteActivity.class);
-                startActivity(intent);
-            }, 100);
+            Intent intent = new Intent(MainActivity.this, FavoriteActivity.class);
+            startActivity(intent);
         });
+
+        btnSearch.setOnClickListener(v -> {
+
+            Intent intent = new Intent(MainActivity.this, ExploreActivity.class);
+            startActivity(intent);
+        });
+
+        btnProfile.setOnClickListener(v -> {
+
+            Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
+            startActivity(intent);
+        });
+
         fabHome.setOnClickListener(v -> {
+            // Giữ nguyên cho FAB click
             bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
 
             fabHome.postDelayed(() -> {
@@ -145,41 +142,7 @@ public class MainActivity extends AppCompatActivity {
                 finish();
             }, 100);
         });
-
-
-
-        btnSearch.setOnClickListener(v -> {
-            // ✅ Sử dụng helper
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.SEARCH_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(MainActivity.this, ExploreActivity.class);
-                startActivity(intent);
-            }, 100);
-        });
-
-        // ✅ SỬA BUTTON PROFILE - Thêm animation FAB
-        btnProfile.setOnClickListener(v -> {
-            // ✅ Sử dụng helper
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.PROFILE_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
-                startActivity(intent);
-            }, 1000);
-        });
-
-
     }
-
     // ✅ THÊM METHOD HELPER chuyển đổi dp sang px
     private int dpToPx(int dp) {
         float density = getResources().getDisplayMetrics().density;
