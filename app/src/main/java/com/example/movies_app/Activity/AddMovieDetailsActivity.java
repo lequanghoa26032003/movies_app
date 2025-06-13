@@ -15,6 +15,8 @@ import androidx.core.content.ContextCompat;
 
 import com.bumptech.glide.Glide;
 import com.example.movies_app.Database.AppDatabase;
+import com.example.movies_app.Database.entity.Movie;
+import com.example.movies_app.Database.entity.MovieDetail;
 import com.example.movies_app.Domain.TMDbMovie;
 import com.example.movies_app.R;
 import com.google.android.material.chip.Chip;
@@ -212,12 +214,19 @@ public class AddMovieDetailsActivity extends BaseActivity {
         // Lưu vào database
         executorService.execute(() -> {
             try {
-                // TODO: Implement database save logic here
-                // Convert TMDbMovie to your Movie entity and save
+                // Tạo Movie entity từ TMDbMovie
+                Movie movie = convertTMDbMovieToMovie(tmdbMovie);
+
+                // Lưu movie vào database
+                databaseHelper.movieDao().insertMovie(movie);
+
+                // Tạo MovieDetail và lưu vào database
+                MovieDetail movieDetail = createMovieDetail(tmdbMovie, movie.getId());
+                databaseHelper.movieDao().insertMovieDetail(movieDetail);
 
                 runOnUiThread(() -> {
                     showLoading(false);
-                    Toast.makeText(this, "Thêm phim thành công!", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Thêm phim thành công vào database!", Toast.LENGTH_SHORT).show();
 
                     // Mark as added to system
                     tmdbMovie.setAddedToSystem(true);
@@ -237,6 +246,44 @@ public class AddMovieDetailsActivity extends BaseActivity {
                 });
             }
         });
+    }
+    private Movie convertTMDbMovieToMovie(TMDbMovie tmdbMovie) {
+        // Tạo ID duy nhất cho movie (có thể dùng timestamp hoặc random)
+        int movieId = (int) System.currentTimeMillis();
+
+        String title = edtTitle.getText().toString().trim();
+        String poster = tmdbMovie.getFullPosterUrl();
+        String year = edtYear.getText().toString().trim();
+        String country = edtCountry.getText().toString().trim();
+        String imdbRating = edtImdbRating.getText().toString().trim();
+        String genres = edtGenres.getText().toString().trim();
+        String images = tmdbMovie.getFullBackdropUrl(); // Sử dụng backdrop URL cho images
+        String lastUpdated = java.text.DateFormat.getDateTimeInstance().format(new java.util.Date());
+        int isDownloaded = 0; // Mặc định chưa download
+
+        return new Movie(movieId, title, poster, year, country, imdbRating,
+                genres, images, lastUpdated, isDownloaded);
+    }
+
+    // Thêm method helper để tạo MovieDetail
+    private MovieDetail createMovieDetail(TMDbMovie tmdbMovie, int movieId) {
+        String released = tmdbMovie.getReleaseDate();
+        String runtime = edtRuntime.getText().toString().trim();
+        String director = edtDirector.getText().toString().trim();
+        String writer = edtWriter.getText().toString().trim();
+        String actors = edtActors.getText().toString().trim();
+        String plot = edtPlot.getText().toString().trim();
+        String awards = edtAwards.getText().toString().trim();
+        String metascore = edtMetascore.getText().toString().trim();
+        String imdbVotes = edtImdbVotes.getText().toString().trim();
+        String type = "movie"; // Mặc định là movie
+        String videoUrl = edtVideoUrl.getText().toString().trim();
+        String subtitleUrl = ""; // Để trống vì chưa có
+        String lastUpdated = java.text.DateFormat.getDateTimeInstance().format(new java.util.Date());
+
+        return new MovieDetail(movieId, released, runtime, director, writer, actors,
+                plot, awards, metascore, imdbVotes, type, videoUrl,
+                subtitleUrl, lastUpdated);
     }
 
     private void viewMovieDetails() {
