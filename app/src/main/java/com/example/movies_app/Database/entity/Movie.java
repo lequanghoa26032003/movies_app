@@ -1,11 +1,11 @@
 package com.example.movies_app.Database.entity;
 
-
 import androidx.room.Entity;
 import androidx.room.PrimaryKey;
+import java.io.Serializable;
 
 @Entity(tableName = "movies")
-public class Movie {
+public class Movie implements Serializable {
     @PrimaryKey
     private int id;
 
@@ -33,6 +33,9 @@ public class Movie {
         this.lastUpdated = lastUpdated;
         this.isDownloaded = isDownloaded;
     }
+
+    // Constructor mặc định (cần cho Room)
+    public Movie() {}
 
     // Getters and Setters
     public int getId() { return id; }

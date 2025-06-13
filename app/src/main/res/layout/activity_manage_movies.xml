@@ -1,113 +1,81 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
-    android:background="@color/background_color">
+    android:padding="16dp">
 
-    <!-- Header -->
-    <com.google.android.material.appbar.MaterialToolbar
-        android:id="@+id/toolbar"
-        android:layout_width="match_parent"
-        android:layout_height="?attr/actionBarSize"
-        android:background="@color/primary_color"
-        app:title="Quản lý phim"
-        app:titleTextColor="@color/white"
-        app:navigationIcon="@drawable/ic_round_arrow_back_24"
-        app:navigationIconTint="@color/white" />
-
-    <!-- Search Section -->
-    <com.google.android.material.card.MaterialCardView
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:layout_margin="16dp"
-        app:cardCornerRadius="12dp"
-        app:cardElevation="4dp">
-
-        <LinearLayout
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:padding="16dp">
-
-            <TextView
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:text="🔍 Tìm kiếm phim từ TMDb"
-                android:textSize="16sp"
-                android:textStyle="bold"
-                android:textColor="@color/primary_color"
-                android:layout_marginBottom="12dp" />
-
-            <com.google.android.material.textfield.TextInputLayout
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                app:boxStrokeColor="@color/black"
-                app:hintTextColor="@color/black">
-
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/movieSearchEditText"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:hint="Nhập tên phim để tìm kiếm..." />
-
-            </com.google.android.material.textfield.TextInputLayout>
-
-        </LinearLayout>
-
-    </com.google.android.material.card.MaterialCardView>
-
-    <!-- Results Section -->
+    <!-- Header buttons -->
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:orientation="vertical">
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp">
 
-        <!-- Result Count -->
-        <TextView
-            android:id="@+id/resultCountText"
-            android:layout_width="match_parent"
+        <Button
+            android:id="@+id/btnToggleView"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:text="Tìm thấy 0 kết quả"
-            android:textSize="14sp"
-            android:textColor="@color/gray"
-            android:paddingHorizontal="16dp"
-            android:paddingVertical="8dp"
-            android:visibility="gone" />
+            android:layout_weight="1"
+            android:text="Tìm phim từ TMDb"
+            android:layout_marginEnd="8dp" />
 
-        <!-- Progress Bar -->
-        <ProgressBar
-            android:id="@+id/searchProgressBar"
-            android:layout_width="wrap_content"
+        <Button
+            android:id="@+id/btnAddFromTMDb"
+            android:layout_width="0dp"
             android:layout_height="wrap_content"
-            android:layout_gravity="center"
-            android:layout_marginTop="50dp"
+            android:layout_weight="1"
+            android:text="Thêm từ TMDb"
             android:visibility="gone" />
-
-        <!-- No Results Message -->
-        <TextView
-            android:id="@+id/noResultsText"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:text="🎬\n\nKhông tìm thấy phim nào\n\nHãy thử tìm kiếm với từ khóa khác"
-            android:textSize="16sp"
-            android:textColor="@color/gray"
-            android:textAlignment="center"
-            android:layout_gravity="center"
-            android:layout_marginTop="100dp"
-            android:visibility="gone" />
-
-        <!-- Movies List -->
-        <androidx.recyclerview.widget.RecyclerView
-            android:id="@+id/moviesRecyclerView"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:clipToPadding="false"
-            android:paddingBottom="16dp" />
 
     </LinearLayout>
+
+    <!-- Search EditText -->
+    <EditText
+        android:id="@+id/movieSearchEditText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:hint="Tìm kiếm phim..."
+        android:padding="12dp"
+        android:background="@drawable/rounded_edittext"
+        android:layout_marginBottom="16dp" />
+
+    <!-- Result count -->
+    <TextView
+        android:id="@+id/resultCountText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Kết quả tìm kiếm"
+        android:textSize="14sp"
+        android:textColor="@color/gray"
+        android:layout_marginBottom="8dp"
+        android:visibility="gone" />
+
+    <!-- Progress bar -->
+    <ProgressBar
+        android:id="@+id/searchProgressBar"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:visibility="gone" />
+
+    <!-- RecyclerView -->
+    <androidx.recyclerview.widget.RecyclerView
+        android:id="@+id/moviesRecyclerView"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1" />
+
+    <!-- No results text -->
+    <TextView
+        android:id="@+id/noResultsText"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="Không có kết quả"
+        android:textSize="16sp"
+        android:textColor="@color/gray"
+        android:gravity="center"
+        android:layout_marginTop="32dp"
+        android:visibility="gone" />
 
 </LinearLayout>

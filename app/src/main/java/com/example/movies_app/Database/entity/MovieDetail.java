@@ -1,10 +1,10 @@
 package com.example.movies_app.Database.entity;
 
-
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
+import java.io.Serializable;
 
 @Entity(
         tableName = "movie_details",
@@ -16,7 +16,7 @@ import androidx.room.PrimaryKey;
         ),
         indices = {@Index("movieId")}
 )
-public class MovieDetail {
+public class MovieDetail implements Serializable {
     @PrimaryKey
     private int movieId;  // Vừa là khóa chính vừa là khóa ngoại đến Movie
 
@@ -34,7 +34,7 @@ public class MovieDetail {
     private String subtitleUrl;
     private String lastUpdated;
 
-    // Constructor
+    // Constructor đầy đủ
     public MovieDetail(int movieId, String released, String runtime, String director,
                        String writer, String actors, String plot, String awards,
                        String metascore, String imdbVotes, String type,
@@ -55,9 +55,16 @@ public class MovieDetail {
         this.lastUpdated = lastUpdated;
     }
 
+    // Constructor mặc định (cần cho Room và để tạo instance mới)
+    public MovieDetail() {}
+
     // Getters and Setters
     public int getMovieId() { return movieId; }
     public void setMovieId(int movieId) { this.movieId = movieId; }
+
+    // Thêm phương thức getId() và setId() để tương thích với code cũ
+    public int getId() { return movieId; }
+    public void setId(int id) { this.movieId = id; }
 
     public String getReleased() { return released; }
     public void setReleased(String released) { this.released = released; }
@@ -97,4 +104,8 @@ public class MovieDetail {
 
     public String getLastUpdated() { return lastUpdated; }
     public void setLastUpdated(String lastUpdated) { this.lastUpdated = lastUpdated; }
+
+    // Thêm phương thức getRated() để tương thích với code cũ
+    public String getRated() { return type; } // Giả sử 'type' là rated info
+    public void setRated(String rated) { this.type = rated; }
 }
