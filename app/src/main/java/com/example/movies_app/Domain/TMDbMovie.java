@@ -43,10 +43,25 @@ public class TMDbMovie implements Serializable {
     @SerializedName("popularity")
     private double popularity;
 
+    // Thêm các trường mở rộng
+    private String videoUrl;
+    private String youtubeKey; // YouTube video key
+    private String director;
+    private String actors;
+    private String writer;
+    private String country;
+    private String awards;
+    private String runtime;
+    private String rated;
+    private String imdbId;
+    private String genresText;
+    private boolean isAddedToSystem = false;
+    private int localId = -1;
+
     // Constructors
     public TMDbMovie() {}
 
-    // Getters and Setters
+    // Existing getters and setters...
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -83,6 +98,62 @@ public class TMDbMovie implements Serializable {
     public double getPopularity() { return popularity; }
     public void setPopularity(double popularity) { this.popularity = popularity; }
 
+    // New getters and setters for extended fields
+    public String getVideoUrl() {
+        if (videoUrl != null && !videoUrl.isEmpty()) {
+            return videoUrl;
+        }
+        // Nếu có YouTube key, tạo URL YouTube
+        if (youtubeKey != null && !youtubeKey.isEmpty()) {
+            return "https://www.youtube.com/watch?v=" + youtubeKey;
+        }
+        return null;
+    }
+
+    public void setVideoUrl(String videoUrl) { this.videoUrl = videoUrl; }
+
+    public String getYoutubeKey() { return youtubeKey; }
+    public void setYoutubeKey(String youtubeKey) {
+        this.youtubeKey = youtubeKey;
+        // Tự động tạo video URL từ YouTube key
+        if (youtubeKey != null && !youtubeKey.isEmpty()) {
+            this.videoUrl = "https://www.youtube.com/watch?v=" + youtubeKey;
+        }
+    }
+
+    public String getDirector() { return director; }
+    public void setDirector(String director) { this.director = director; }
+
+    public String getActors() { return actors; }
+    public void setActors(String actors) { this.actors = actors; }
+
+    public String getWriter() { return writer; }
+    public void setWriter(String writer) { this.writer = writer; }
+
+    public String getCountry() { return country; }
+    public void setCountry(String country) { this.country = country; }
+
+    public String getAwards() { return awards; }
+    public void setAwards(String awards) { this.awards = awards; }
+
+    public String getRuntime() { return runtime; }
+    public void setRuntime(String runtime) { this.runtime = runtime; }
+
+    public String getRated() { return rated; }
+    public void setRated(String rated) { this.rated = rated; }
+
+    public String getImdbId() { return imdbId; }
+    public void setImdbId(String imdbId) { this.imdbId = imdbId; }
+
+    public String getGenresText() { return genresText; }
+    public void setGenresText(String genresText) { this.genresText = genresText; }
+
+    public boolean isAddedToSystem() { return isAddedToSystem; }
+    public void setAddedToSystem(boolean addedToSystem) { isAddedToSystem = addedToSystem; }
+
+    public int getLocalId() { return localId; }
+    public void setLocalId(int localId) { this.localId = localId; }
+
     // Helper methods
     public String getFullPosterUrl() {
         return posterPath != null ? "https://image.tmdb.org/t/p/w500" + posterPath : "";
@@ -90,5 +161,25 @@ public class TMDbMovie implements Serializable {
 
     public String getFullBackdropUrl() {
         return backdropPath != null ? "https://image.tmdb.org/t/p/w780" + backdropPath : "";
+    }
+
+    public String getYearFromReleaseDate() {
+        if (releaseDate != null && releaseDate.length() >= 4) {
+            return releaseDate.substring(0, 4);
+        }
+        return "";
+    }
+
+    // Method to get YouTube embed URL for web view
+    public String getYoutubeEmbedUrl() {
+        if (youtubeKey != null && !youtubeKey.isEmpty()) {
+            return "https://www.youtube.com/embed/" + youtubeKey;
+        }
+        return null;
+    }
+
+    // Method to check if movie has complete information for detail view
+    public boolean hasCompleteInfo() {
+        return (videoUrl != null && !videoUrl.isEmpty()) || (youtubeKey != null && !youtubeKey.isEmpty());
     }
 }

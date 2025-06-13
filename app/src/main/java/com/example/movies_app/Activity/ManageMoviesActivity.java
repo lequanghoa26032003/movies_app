@@ -17,6 +17,8 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.movies_app.Adapter.TMDbMovieAdapter;
 import com.example.movies_app.Domain.TMDbMovie;
 import com.example.movies_app.Domain.TMDbSearchResponse;
+import com.example.movies_app.Domain.TMDbVideoResponse;
+import com.example.movies_app.Domain.TMDbVideo;
 import com.example.movies_app.Helper.TMDbApiService;
 import com.example.movies_app.R;
 
@@ -48,6 +50,9 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
 
         apiService = new TMDbApiService(this);
         moviesList = new ArrayList<>();
+
+        // Load popular movies by default
+        loadPopularMovies();
     }
 
     private void initViews() {
@@ -57,21 +62,99 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
         resultCountText = findViewById(R.id.resultCountText);
         noResultsText = findViewById(R.id.noResultsText);
     }
-    private void addMovieToSystem(TMDbMovie movie) {
-        Intent intent = new Intent(this, AddMovieDetailsActivity.class);
-        intent.putExtra("item_tmdb_movie", movie); // TMDbMovie phải implement Serializable
-        startActivityForResult(intent, REQUEST_ADD_MOVIE);
+
+    // Load popular movies when app starts
+    private void loadPopularMovies() {
+        if (isLoading) return;
+
+        isLoading = true;
+        showLoading(true);
+        hideNoResults();
+
+        apiService.getPopularMovies(currentPage, new TMDbApiService.SearchCallback() {
+            @Override
+            public void onSuccess(TMDbSearchResponse response) {
+                isLoading = false;
+                showLoading(false);
+
+                if (response.getResults() != null && !response.getResults().isEmpty()) {
+                    moviesList.clear();
+                    moviesList.addAll(response.getResults());
+                    adapter.updateMovies(moviesList);
+
+                    resultCountText.setText("Phim phổ biến (" + response.getResults().size() + " phim)");
+                    resultCountText.setVisibility(View.VISIBLE);
+                } else {
+                    showNoResults();
+                }
+            }
+
+            @Override
+            public void onError(String error) {
+                isLoading = false;
+                showLoading(false);
+                showNoResults();
+                Toast.makeText(ManageMoviesActivity.this, "Lỗi: " + error, Toast.LENGTH_SHORT).show();
+            }
+        });
     }
+
+    private void addMovieToSystem(TMDbMovie movie) {
+        // Hiển thị loading
+        showLoading(true);
+
+        // Lấy video từ API /movie/{id}/videos
+        apiService.getMovieVideos(movie.getId(), new TMDbApiService.VideoCallback() {
+            @Override
+            public void onSuccess(TMDbVideoResponse videoResponse) {
+                showLoading(false);
+
+                // Tìm trailer YouTube đầu tiên
+                TMDbVideo trailer = videoResponse.getFirstYouTubeTrailer();
+                if (trailer != null) {
+                    movie.setYoutubeKey(trailer.getKey());
+                    Toast.makeText(ManageMoviesActivity.this, "✓ Đã tìm thấy trailer: " + trailer.getName(), Toast.LENGTH_SHORT).show();
+                } else {
+                    // Tìm video YouTube bất kỳ nếu không có trailer
+                    TMDbVideo anyVideo = videoResponse.getFirstYouTubeVideo();
+                    if (anyVideo != null) {
+                        movie.setYoutubeKey(anyVideo.getKey());
+                        Toast.makeText(ManageMoviesActivity.this, "✓ Đã tìm thấy video: " + anyVideo.getName(), Toast.LENGTH_SHORT).show();
+                    } else {
+                        Toast.makeText(ManageMoviesActivity.this, "⚠ Không tìm thấy video, bạn có thể nhập URL thủ công", Toast.LENGTH_SHORT).show();
+                    }
+                }
+
+                // Chuyển sang AddMovieDetailsActivity
+                Intent intent = new Intent(ManageMoviesActivity.this, AddMovieDetailsActivity.class);
+                intent.putExtra("item_tmdb_movie", movie);
+                startActivityForResult(intent, REQUEST_ADD_MOVIE);
+            }
+
+            @Override
+            public void onError(String error) {
+                showLoading(false);
+                Toast.makeText(ManageMoviesActivity.this, "⚠ Không thể lấy video: " + error, Toast.LENGTH_SHORT).show();
+
+                // Vẫn chuyển sang AddMovieDetailsActivity nhưng không có video
+                Intent intent = new Intent(ManageMoviesActivity.this, AddMovieDetailsActivity.class);
+                intent.putExtra("item_tmdb_movie", movie);
+                startActivityForResult(intent, REQUEST_ADD_MOVIE);
+            }
+        });
+    }
+
+    @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_ADD_MOVIE && resultCode == RESULT_OK) {
             if (data.getBooleanExtra("movie_added", false)) {
                 String movieTitle = data.getStringExtra("movie_title");
                 Toast.makeText(this, "Đã thêm phim: " + movieTitle, Toast.LENGTH_SHORT).show();
-                // Refresh danh sách nếu cần
             }
         }
     }
+
     private void setupRecyclerView() {
         adapter = new TMDbMovieAdapter(this, moviesList);
         adapter.setOnMovieClickListener(this);
@@ -86,10 +169,11 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
-                if (s.length() > 2) { // Tìm kiếm khi có ít nhất 3 ký tự
+                if (s.length() > 2) {
                     searchMovies(s.toString());
-                } else {
-                    clearResults();
+                } else if (s.length() == 0) {
+                    // Khi search box trống, load lại popular movies
+                    loadPopularMovies();
                 }
             }
 
@@ -117,7 +201,7 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
                     moviesList.addAll(response.getResults());
                     adapter.updateMovies(moviesList);
 
-                    resultCountText.setText("Tìm thấy " + response.getTotalResults() + " kết quả");
+                    resultCountText.setText("Tìm thấy " + response.getTotalResults() + " kết quả cho \"" + query + "\"");
                     resultCountText.setVisibility(View.VISIBLE);
                 } else {
                     showNoResults();
@@ -156,18 +240,15 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
 
     @Override
     public void onMovieClick(TMDbMovie movie) {
-        // Hiển thị chi tiết phim
         showMovieDetails(movie);
     }
 
     @Override
     public void onAddMovieClick(TMDbMovie movie) {
-        // Chuyển đến màn hình thêm phim với thông tin từ TMDb
         openAddMovieScreen(movie);
     }
 
     private void showMovieDetails(TMDbMovie movie) {
-        // TODO: Hiển thị dialog hoặc fragment với chi tiết phim
         Toast.makeText(this, "Chi tiết: " + movie.getTitle(), Toast.LENGTH_SHORT).show();
     }
 

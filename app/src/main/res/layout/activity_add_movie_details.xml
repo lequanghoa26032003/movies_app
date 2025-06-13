@@ -435,16 +435,28 @@
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginEnd="8dp"
+                android:layout_marginEnd="4dp"
                 android:text="Hủy"
                 style="@style/Widget.MaterialComponents.Button.OutlinedButton" />
+
+            <Button
+                android:id="@+id/btnViewDetails"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="4dp"
+                android:layout_marginEnd="4dp"
+                android:text="Xem Chi Tiết"
+                android:backgroundTint="@color/purple_500"
+                android:textColor="@android:color/white"
+                style="@style/Widget.MaterialComponents.Button" />
 
             <Button
                 android:id="@+id/btnAddMovie"
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_weight="1"
-                android:layout_marginStart="8dp"
+                android:layout_marginStart="4dp"
                 android:text="Thêm Phim"
                 style="@style/Widget.MaterialComponents.Button" />
 

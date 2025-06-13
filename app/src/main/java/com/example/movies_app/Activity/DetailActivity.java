@@ -1,7 +1,5 @@
 package com.example.movies_app.Activity;
 
-import com.example.movies_app.R;
-
 import android.content.Intent;
 import android.os.Bundle;
 import android.util.Log;
@@ -17,7 +15,6 @@ import androidx.appcompat.widget.AppCompatButton;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
-import androidx.viewpager2.widget.ViewPager2;
 
 import com.android.volley.Request;
 import com.android.volley.RequestQueue;
@@ -26,9 +23,14 @@ import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.example.movies_app.Adapter.ImageListAdapter;
 import com.example.movies_app.Domain.FilmItem;
+import com.example.movies_app.Domain.TMDbMovie;
+import com.example.movies_app.R;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.List;
 
 public class DetailActivity extends AppCompatActivity {
     private RequestQueue mRequestQueue;
@@ -46,17 +48,80 @@ public class DetailActivity extends AppCompatActivity {
     private TabLayout tabLayout;
     private LinearLayout summeryContainer, actorsContainer;
     private TextView summeryContent, actorsContent;
-    private ViewPager2 viewPager;
+
+    // Thêm biến cho TMDb data
+    private TMDbMovie tmdbMovie;
+    private boolean useTmdbData = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
 
-        idFilm = getIntent().getIntExtra("id", 0);
+        // Kiểm tra dữ liệu từ Intent
+        checkIntentData();
+
         initView();
         setupTabLayout();
-        sendRequest();
+
+        // Load dữ liệu dựa trên source
+        if (useTmdbData && tmdbMovie != null) {
+            loadTmdbData();
+        } else {
+            sendRequest();
+        }
+    }
+
+    private void checkIntentData() {
+        Intent intent = getIntent();
+
+        // Kiểm tra xem có dữ liệu TMDb không
+        if (intent.hasExtra("tmdb_movie")) {
+            tmdbMovie = (TMDbMovie) intent.getSerializableExtra("tmdb_movie");
+            useTmdbData = intent.getBooleanExtra("use_tmdb_data", false);
+        }
+
+        // Lấy ID phim (cho trường hợp fallback)
+        idFilm = intent.getIntExtra("id", 0);
+    }
+
+    private void loadTmdbData() {
+        // Hiển thị dữ liệu từ TMDb trực tiếp
+        progressBar.setVisibility(View.GONE);
+        scrollView.setVisibility(View.VISIBLE);
+
+        // Load images
+        Glide.with(DetailActivity.this)
+                .load(tmdbMovie.getFullPosterUrl())
+                .into(pic1);
+
+        Glide.with(DetailActivity.this)
+                .load(tmdbMovie.getFullBackdropUrl())
+                .into(pic2);
+
+        // Set basic info
+        titleTxt.setText(tmdbMovie.getTitle());
+        movieRateTxt.setText(tmdbMovie.getRated() != null ? tmdbMovie.getRated() : "N/A");
+        movieTimeTxt.setText(tmdbMovie.getRuntime() != null ? tmdbMovie.getRuntime() : "N/A");
+        movieDateTxt.setText(tmdbMovie.getReleaseDate());
+
+        // Set tab content
+        summeryContent.setText(tmdbMovie.getOverview());
+        actorsContent.setText(tmdbMovie.getActors() != null ? tmdbMovie.getActors() : "Thông tin diễn viên chưa có");
+
+        // Set up images for related tab
+        List<String> images = new ArrayList<>();
+        if (tmdbMovie.getFullPosterUrl() != null && !tmdbMovie.getFullPosterUrl().isEmpty()) {
+            images.add(tmdbMovie.getFullPosterUrl());
+        }
+        if (tmdbMovie.getFullBackdropUrl() != null && !tmdbMovie.getFullBackdropUrl().isEmpty()) {
+            images.add(tmdbMovie.getFullBackdropUrl());
+        }
+
+        if (!images.isEmpty()) {
+            adapterImgList = new ImageListAdapter(images);
+            recyclerView.setAdapter(adapterImgList);
+        }
     }
 
     private void sendRequest() {
@@ -116,14 +181,20 @@ public class DetailActivity extends AppCompatActivity {
 
         // Khởi tạo các thành phần cho TabLayout
         tabLayout = findViewById(R.id.tabLayout);
+
         // Thêm sự kiện click cho nút xem phim
         AppCompatButton btnWatchMovie = findViewById(R.id.btnWatchMovie);
         btnWatchMovie.setOnClickListener(v -> {
             try {
                 Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
                 intent.putExtra("id", idFilm);
-                String testVideoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                intent.putExtra("videoUrl", testVideoUrl);
+
+                // Sử dụng video URL từ TMDb nếu có
+                String videoUrl = (useTmdbData && tmdbMovie != null && tmdbMovie.getVideoUrl() != null)
+                        ? tmdbMovie.getVideoUrl()
+                        : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+
+                intent.putExtra("videoUrl", videoUrl);
                 intent.putExtra("title", titleTxt.getText().toString());
                 startActivity(intent);
             } catch (Exception e) {
