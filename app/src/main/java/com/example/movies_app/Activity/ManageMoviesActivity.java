@@ -1,5 +1,6 @@
 package com.example.movies_app.Activity;
 
+import android.content.Intent;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -8,14 +9,17 @@ import android.widget.EditText;
 import android.widget.ProgressBar;
 import android.widget.TextView;
 import android.widget.Toast;
+
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.example.movies_app.Adapter.TMDbMovieAdapter;
 import com.example.movies_app.Domain.TMDbMovie;
 import com.example.movies_app.Domain.TMDbSearchResponse;
 import com.example.movies_app.Helper.TMDbApiService;
 import com.example.movies_app.R;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,7 +33,7 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
     private TMDbApiService apiService;
     private TMDbMovieAdapter adapter;
     private List<TMDbMovie> moviesList;
-
+    private static final int REQUEST_ADD_MOVIE = 1001;
     private int currentPage = 1;
     private boolean isLoading = false;
 
@@ -53,7 +57,21 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
         resultCountText = findViewById(R.id.resultCountText);
         noResultsText = findViewById(R.id.noResultsText);
     }
-
+    private void addMovieToSystem(TMDbMovie movie) {
+        Intent intent = new Intent(this, AddMovieDetailsActivity.class);
+        intent.putExtra("item_tmdb_movie", movie); // TMDbMovie phải implement Serializable
+        startActivityForResult(intent, REQUEST_ADD_MOVIE);
+    }
+    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
+        super.onActivityResult(requestCode, resultCode, data);
+        if (requestCode == REQUEST_ADD_MOVIE && resultCode == RESULT_OK) {
+            if (data.getBooleanExtra("movie_added", false)) {
+                String movieTitle = data.getStringExtra("movie_title");
+                Toast.makeText(this, "Đã thêm phim: " + movieTitle, Toast.LENGTH_SHORT).show();
+                // Refresh danh sách nếu cần
+            }
+        }
+    }
     private void setupRecyclerView() {
         adapter = new TMDbMovieAdapter(this, moviesList);
         adapter.setOnMovieClickListener(this);
@@ -154,7 +172,6 @@ public class ManageMoviesActivity extends AppCompatActivity implements TMDbMovie
     }
 
     private void openAddMovieScreen(TMDbMovie movie) {
-        // TODO: Mở màn hình thêm phim với dữ liệu từ TMDb
-        Toast.makeText(this, "Thêm phim: " + movie.getTitle(), Toast.LENGTH_SHORT).show();
+        addMovieToSystem(movie);
     }
 }

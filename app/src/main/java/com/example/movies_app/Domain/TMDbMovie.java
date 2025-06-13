@@ -1,9 +1,12 @@
 package com.example.movies_app.Domain;
 
 import com.google.gson.annotations.SerializedName;
+import java.io.Serializable;
 import java.util.List;
 
-public class TMDbMovie {
+public class TMDbMovie implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     @SerializedName("id")
     private int id;
 

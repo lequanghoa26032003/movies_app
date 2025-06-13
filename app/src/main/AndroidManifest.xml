@@ -61,7 +61,10 @@
         <activity
             android:name=".Activity.AdminSettingsActivity"
             android:exported="false" />
-
+        <activity
+            android:name=".Activity.AddMovieDetailsActivity"
+            android:exported="false"
+            />
         <activity android:name=".Activity.FavoriteActivity" android:exported="false" />
         <activity android:name=".Activity.HistoryActivity" android:exported="false" />
         <activity android:name=".Activity.ProfileActivity" android:exported="false" />
