@@ -2,6 +2,7 @@ package com.example.movies_app.Database.entity;
 
 import androidx.annotation.NonNull;
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
 
@@ -37,25 +38,10 @@ public class User {
 
     private String avatarUrl;
 
-    // ✅ THÊM TRƯỜNG ROLE
     @NonNull
     private String role = "USER";  // USER hoặc ADMIN
 
-    // Constructor cũ - giữ nguyên để không lỗi
-    public User(@NonNull String email, @NonNull String username,
-                @NonNull String passwordHash, String fullName, String phoneNumber,
-                String registrationDate) {
-        this.email = email;
-        this.username = username;
-        this.passwordHash = passwordHash;
-        this.fullName = fullName;
-        this.phoneNumber = phoneNumber;
-        this.registrationDate = registrationDate;
-        this.accountStatus = 1;
-        this.role = "USER"; // Mặc định là USER
-    }
-
-    // Constructor mới có role
+    // Constructor chính cho Room (không có @Ignore)
     public User(@NonNull String email, @NonNull String username,
                 @NonNull String passwordHash, String fullName, String phoneNumber,
                 String registrationDate, @NonNull String role) {
@@ -69,7 +55,22 @@ public class User {
         this.role = role;
     }
 
-    // Getters and Setters (giữ nguyên các getter/setter cũ và thêm mới)
+    // Constructor cũ - thêm @Ignore để Room bỏ qua
+    @Ignore
+    public User(@NonNull String email, @NonNull String username,
+                @NonNull String passwordHash, String fullName, String phoneNumber,
+                String registrationDate) {
+        this.email = email;
+        this.username = username;
+        this.passwordHash = passwordHash;
+        this.fullName = fullName;
+        this.phoneNumber = phoneNumber;
+        this.registrationDate = registrationDate;
+        this.accountStatus = 1;
+        this.role = "USER"; // Mặc định là USER
+    }
+
+    // Getters and Setters
     public int getUserId() { return userId; }
     public void setUserId(int userId) { this.userId = userId; }
 
@@ -103,12 +104,11 @@ public class User {
     public String getAvatarUrl() { return avatarUrl; }
     public void setAvatarUrl(String avatarUrl) { this.avatarUrl = avatarUrl; }
 
-    // ✅ THÊM GETTER/SETTER CHO ROLE
     @NonNull
     public String getRole() { return role; }
     public void setRole(@NonNull String role) { this.role = role; }
 
-    // ✅ THÊM CÁC PHƯƠNG THỨC TIỆN ÍCH
+    // Phương thức tiện ích
     public boolean isAdmin() {
         return "ADMIN".equals(this.role);
     }
