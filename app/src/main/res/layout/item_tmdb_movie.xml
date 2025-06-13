@@ -67,16 +67,24 @@
                 android:maxLines="3"
                 android:ellipsize="end" />
 
+            <!-- ✅ NÚT MỚI ĐẸP HƠN -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/addMovieButton"
                 android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="+ Thêm vào hệ thống"
-                android:layout_marginTop="8dp"
-                app:icon="@drawable/ic_add"
-                app:iconSize="16dp"
+                android:layout_height="36dp"
+                android:text="Thêm vào hệ thống"
                 android:textSize="12sp"
-                style="@style/Widget.Material3.Button.TonalButton" />
+                android:textColor="#FFFFFF"
+                android:layout_marginTop="8dp"
+                android:paddingStart="12dp"
+                android:paddingEnd="12dp"
+                app:backgroundTint="#2196F3"
+                app:icon="@drawable/ic_add"
+                app:iconTint="#FFFFFF"
+                app:iconSize="14dp"
+                app:iconPadding="4dp"
+                app:cornerRadius="18dp"
+                style="@style/Widget.Material3.Button" />
 
         </LinearLayout>
 

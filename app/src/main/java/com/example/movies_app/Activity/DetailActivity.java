@@ -22,6 +22,7 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.example.movies_app.Adapter.ImageListAdapter;
+import com.example.movies_app.Database.entity.Movie;
 import com.example.movies_app.Domain.FilmItem;
 import com.example.movies_app.Domain.TMDbMovie;
 import com.example.movies_app.R;
@@ -49,9 +50,11 @@ public class DetailActivity extends AppCompatActivity {
     private LinearLayout summeryContainer, actorsContainer;
     private TextView summeryContent, actorsContent;
 
-    // Thêm biến cho TMDb data
+    // Thêm biến cho TMDb data và Local movie
     private TMDbMovie tmdbMovie;
+    private Movie localMovie;
     private boolean useTmdbData = false;
+    private boolean useLocalData = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -65,7 +68,9 @@ public class DetailActivity extends AppCompatActivity {
         setupTabLayout();
 
         // Load dữ liệu dựa trên source
-        if (useTmdbData && tmdbMovie != null) {
+        if (useLocalData && localMovie != null) {
+            loadLocalMovieData();
+        } else if (useTmdbData && tmdbMovie != null) {
             loadTmdbData();
         } else {
             sendRequest();
@@ -75,14 +80,68 @@ public class DetailActivity extends AppCompatActivity {
     private void checkIntentData() {
         Intent intent = getIntent();
 
+        // Kiểm tra xem có dữ liệu Local Movie không
+        if (intent.hasExtra("object")) {
+            localMovie = (Movie) intent.getSerializableExtra("object");
+            useLocalData = true;
+            Log.d("DetailActivity", "Using local movie data: " + localMovie.getTitle());
+        }
         // Kiểm tra xem có dữ liệu TMDb không
-        if (intent.hasExtra("tmdb_movie")) {
+        else if (intent.hasExtra("tmdb_movie")) {
             tmdbMovie = (TMDbMovie) intent.getSerializableExtra("tmdb_movie");
             useTmdbData = intent.getBooleanExtra("use_tmdb_data", false);
+            Log.d("DetailActivity", "Using TMDb movie data: " + tmdbMovie.getTitle());
         }
 
         // Lấy ID phim (cho trường hợp fallback)
         idFilm = intent.getIntExtra("id", 0);
+        Log.d("DetailActivity", "Movie ID: " + idFilm);
+    }
+
+    private void loadLocalMovieData() {
+        // Hiển thị dữ liệu từ Local Movie trực tiếp
+        progressBar.setVisibility(View.GONE);
+        scrollView.setVisibility(View.VISIBLE);
+
+        // Load images
+        Glide.with(DetailActivity.this)
+                .load(localMovie.getPoster())
+                .placeholder(R.drawable.placeholder_movie)
+                .error(R.drawable.placeholder_movie)
+                .into(pic1);
+
+        Glide.with(DetailActivity.this)
+                .load(localMovie.getPoster())
+                .placeholder(R.drawable.placeholder_movie)
+                .error(R.drawable.placeholder_movie)
+                .into(pic2);
+
+        // Set basic info
+        titleTxt.setText(localMovie.getTitle() != null ? localMovie.getTitle() : "Unknown Title");
+        movieRateTxt.setText("N/A"); // Local movie might not have rating
+        movieTimeTxt.setText("N/A"); // Local movie might not have runtime
+        movieDateTxt.setText(localMovie.getYear() != null ? localMovie.getYear() : "Unknown");
+
+        // Set tab content
+        summeryContent.setText("Thông tin chi tiết chưa có sẵn cho phim này.\n\nThể loại: " +
+                (localMovie.getGenres() != null ? localMovie.getGenres() : "Chưa xác định") +
+                "\n\nQuốc gia: " +
+                (localMovie.getCountry() != null ? localMovie.getCountry() : "Chưa xác định") +
+                "\n\nIMDb Rating: " +
+                (localMovie.getImdbRating() != null ? localMovie.getImdbRating() : "Chưa có"));
+
+        actorsContent.setText("Thông tin diễn viên chưa có sẵn cho phim này.");
+
+        // Set up images for related tab
+        List<String> images = new ArrayList<>();
+        if (localMovie.getPoster() != null && !localMovie.getPoster().isEmpty()) {
+            images.add(localMovie.getPoster());
+        }
+
+        if (!images.isEmpty()) {
+            adapterImgList = new ImageListAdapter(images);
+            recyclerView.setAdapter(adapterImgList);
+        }
     }
 
     private void loadTmdbData() {
@@ -125,6 +184,15 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void sendRequest() {
+        // Kiểm tra ID hợp lệ trước khi gọi API
+        if (idFilm <= 0) {
+            Log.e("DetailActivity", "Invalid movie ID: " + idFilm);
+            progressBar.setVisibility(View.GONE);
+            Toast.makeText(this, "Lỗi: ID phim không hợp lệ", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
         mRequestQueue = Volley.newRequestQueue(this);
         progressBar.setVisibility(View.VISIBLE);
         scrollView.setVisibility(View.GONE);
@@ -162,6 +230,8 @@ public class DetailActivity extends AppCompatActivity {
         }, error -> {
             progressBar.setVisibility(View.GONE);
             Log.i("uilover", "onErrorResponse: "+error.toString());
+            Toast.makeText(this, "Lỗi khi tải dữ liệu phim", Toast.LENGTH_SHORT).show();
+            finish();
         });
         mRequestQueue.add(mStringRequest);
     }
@@ -187,15 +257,27 @@ public class DetailActivity extends AppCompatActivity {
         btnWatchMovie.setOnClickListener(v -> {
             try {
                 Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
-                intent.putExtra("id", idFilm);
 
-                // Sử dụng video URL từ TMDb nếu có
-                String videoUrl = (useTmdbData && tmdbMovie != null && tmdbMovie.getVideoUrl() != null)
-                        ? tmdbMovie.getVideoUrl()
-                        : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                // Xử lý ID và video URL tùy theo source
+                if (useLocalData && localMovie != null) {
+                    intent.putExtra("id", localMovie.getId());
+                    intent.putExtra("title", localMovie.getTitle());
+                    // Sử dụng video mặc định cho local movie
+                    intent.putExtra("videoUrl", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                } else if (useTmdbData && tmdbMovie != null) {
+                    intent.putExtra("id", tmdbMovie.getId());
+                    intent.putExtra("title", tmdbMovie.getTitle());
+                    // Sử dụng video URL từ TMDb nếu có
+                    String videoUrl = tmdbMovie.getVideoUrl() != null
+                            ? tmdbMovie.getVideoUrl()
+                            : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+                    intent.putExtra("videoUrl", videoUrl);
+                } else {
+                    intent.putExtra("id", idFilm);
+                    intent.putExtra("title", titleTxt.getText().toString());
+                    intent.putExtra("videoUrl", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
+                }
 
-                intent.putExtra("videoUrl", videoUrl);
-                intent.putExtra("title", titleTxt.getText().toString());
                 startActivity(intent);
             } catch (Exception e) {
                 Log.e("DetailActivity", "Lỗi khi mở PlayerActivity: " + e.getMessage());
