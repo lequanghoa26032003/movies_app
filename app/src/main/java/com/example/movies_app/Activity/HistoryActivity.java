@@ -3,13 +3,16 @@
     import android.content.Intent;
     import android.graphics.PorterDuff;
     import android.os.Bundle;
+    import android.view.View;
     import android.widget.ImageView;
     import android.widget.TextView;
 
     import androidx.appcompat.app.AppCompatActivity;
     import androidx.core.content.ContextCompat;
+    import androidx.recyclerview.widget.GridLayoutManager;
     import androidx.recyclerview.widget.RecyclerView;
 
+    import com.example.movies_app.Adapter.EmptyAdapter;
     import com.example.movies_app.Helper.BaseBottomNavigationHelper;
     import com.example.movies_app.R;
     import com.google.android.material.bottomappbar.BottomAppBar;
@@ -48,6 +51,8 @@
             btnFavorites = findViewById(R.id.btn_favorites);
             btnSearch = findViewById(R.id.btn_search);
             btnProfile = findViewById(R.id.btn_profile);
+            historyRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+            historyRecyclerView.setAdapter(new EmptyAdapter());
         }
 
         private void setupBottomNavigation() {
@@ -124,7 +129,8 @@
         }
 
         private void loadWatchHistory() {
-            // Hiển thị thông báo trống nếu chưa có lịch sử xem
+            // Hiển thị thông báo trống
             emptyTextView.setText("📺\n\nChưa có lịch sử xem phim nào\n\nHãy bắt đầu xem những bộ phim yêu thích!");
+            emptyTextView.setVisibility(View.VISIBLE);
         }
     }

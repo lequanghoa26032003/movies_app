@@ -20,4 +20,9 @@
         <item name="collapsedSize">10sp</item>
 
     </style>
+    <style name="RoundedCorners">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">8dp</item>
+    </style>
+
 </resources>

@@ -38,6 +38,7 @@ import com.android.volley.Response;
 import com.android.volley.VolleyError;
 import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
+import com.example.movies_app.Adapter.EmptyAdapter;
 import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Domain.ListFilm;
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
@@ -51,7 +52,6 @@ import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
-
 public class ExploreActivity extends AppCompatActivity {
 
     // Search & Filter Components
@@ -126,6 +126,14 @@ public class ExploreActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
         btnMain = findViewById(R.id.btn_center);
+        exploreRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        exploreRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
+
+        categoryRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        categoryRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
+
+        trendingRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        trendingRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
 
     }
 
@@ -494,21 +502,9 @@ public class ExploreActivity extends AppCompatActivity {
     }
 
     private void loadTrendingMovies() {
-        // Load phim trending từ API
-        RequestQueue queue = Volley.newRequestQueue(this);
-        StringRequest request = new StringRequest(Request.Method.GET,
-                "https://moviesapi.ir/api/v1/movies?page=2",
-                response -> {
-                    Gson gson = new Gson();
-                    ListFilm items = gson.fromJson(response, ListFilm.class);
-                    FilmListAdapter adapter = new FilmListAdapter(items);
-                    trendingRecyclerView.setAdapter(adapter);
-                },
-                error -> Log.e("ExploreActivity", "Error loading trending: " + error.toString()));
-
-        queue.add(request);
+        // TODO: Load dữ liệu thực tế từ API
+        // Adapter trống đã được gán trong initViews() rồi
     }
-
     private void focusSearchBox() {
         searchEditText.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);

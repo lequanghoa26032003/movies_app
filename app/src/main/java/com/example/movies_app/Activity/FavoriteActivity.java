@@ -10,6 +10,7 @@ import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.movies_app.Adapter.EmptyAdapter;
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
@@ -39,6 +40,7 @@ public class FavoriteActivity extends AppCompatActivity {
     private void initViews() {
         favoriteRecyclerView = findViewById(R.id.favoriteRecyclerView);
         favoriteRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+        favoriteRecyclerView.setAdapter(new EmptyAdapter());
         bottomAppBar = findViewById(R.id.app_bar);
 
         // Bottom Navigation Views
@@ -48,7 +50,6 @@ public class FavoriteActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
         btnMain = findViewById(R.id.btn_center);
-
     }
 
     private void setupBottomNavigation() {
@@ -124,6 +125,7 @@ public class FavoriteActivity extends AppCompatActivity {
     }
 
     private void loadFavoriteMovies() {
-        // TODO: Load danh sách phim yêu thích
+        // TODO: Load danh sách phim yêu thích thực tế sau
+        // Adapter đã được gán trong initViews() rồi
     }
 }

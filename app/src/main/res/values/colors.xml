@@ -16,5 +16,7 @@
     <color name="purple">#9C27B0</color>
     <color name="selected_tab_color">#ffc107</color>
     <color name="blue">#2196F3</color>
-
+    <color name="primary_color">#1976D2</color>
+    <color name="background_color">#F5F5F5</color>
+    <color name="dark_gray">#424242</color>
 </resources>
