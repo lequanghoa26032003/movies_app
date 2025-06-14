@@ -2,6 +2,7 @@ package com.example.movies_app.Activity;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -31,6 +32,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
     private UserManagementService userService;
     private EditText editTextSearch;
     private FloatingActionButton fabAddUser;
+    private int currentAdminId = -1;
 
     private List<User> allUsers = new ArrayList<>();
     private List<User> filteredUsers = new ArrayList<>();
@@ -43,7 +45,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_management);
-
+        getCurrentAdminId();
         initViews();
         setupToolbar();
         setupRecyclerView();
@@ -60,7 +62,10 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
 
         fabAddUser.setOnClickListener(v -> openAddUserDialog());
     }
-
+    private void getCurrentAdminId() {
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        currentAdminId = prefs.getInt("user_id", -1);
+    }
     private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -220,7 +225,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
     // ========== Helper Methods ==========
 
     private void deleteUser(User user) {
-        userService.deleteUser(user.getUserId(), new UserManagementService.UserOperationCallback() {
+        userService.deleteUser(user.getUserId(), currentAdminId, new UserManagementService.UserOperationCallback() {
             @Override
             public void onSuccess(String message, User user) {
                 runOnUiThread(() -> {
@@ -239,7 +244,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
     }
 
     private void changeUserStatus(User user, int newStatus) {
-        userService.changeAccountStatus(user.getUserId(), newStatus, new UserManagementService.UserOperationCallback() {
+        userService.changeAccountStatus(user.getUserId(), newStatus, currentAdminId, new UserManagementService.UserOperationCallback() {
             @Override
             public void onSuccess(String message, User updatedUser) {
                 runOnUiThread(() -> {

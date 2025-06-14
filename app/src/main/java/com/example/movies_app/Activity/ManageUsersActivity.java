@@ -2,6 +2,7 @@ package com.example.movies_app.Activity;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.text.Editable;
 import android.text.TextWatcher;
@@ -57,7 +58,7 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
 
     // Timer for real-time updates
     private Timer statisticsTimer;
-
+    private int currentAdminId = -1;
     // Constants
     private static final int REQUEST_ADD_USER = 1001;
     private static final int REQUEST_EDIT_USER = 1002;
@@ -66,7 +67,7 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_manage_users);
-
+        getCurrentAdminId();
         initViews();
         setupServices();
         setupRecyclerView();
@@ -102,7 +103,10 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
             // Position and add to layout...
         }
     }
-
+    private void getCurrentAdminId() {
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        currentAdminId = prefs.getInt("user_id", -1);
+    }
     private void setupServices() {
         database = AppDatabase.getInstance(this);
         userService = new UserManagementService(this);
@@ -298,7 +302,7 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
     // ========== Helper Methods ==========
 
     private void deleteUser(User user) {
-        userService.deleteUser(user.getUserId(), new UserManagementService.UserOperationCallback() {
+        userService.deleteUser(user.getUserId(),currentAdminId, new UserManagementService.UserOperationCallback() {
             @Override
             public void onSuccess(String message, User user) {
                 runOnUiThread(() -> {
@@ -318,7 +322,8 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
     }
 
     private void changeUserStatus(User user, int newStatus) {
-        userService.changeAccountStatus(user.getUserId(), newStatus,
+
+        userService.changeAccountStatus(user.getUserId(), newStatus,currentAdminId,
                 new UserManagementService.UserOperationCallback() {
                     @Override
                     public void onSuccess(String message, User updatedUser) {
@@ -352,7 +357,7 @@ public class ManageUsersActivity extends AppCompatActivity implements UserManage
                             .map(User::getUserId)
                             .collect(Collectors.toList());
 
-                    userService.bulkChangeStatus(userIds, UserManagementService.STATUS_BLOCKED,
+                    userService.bulkChangeStatus(userIds, UserManagementService.STATUS_BLOCKED,currentAdminId,
                             new UserManagementService.BulkOperationCallback() {
                                 @Override
                                 public void onSuccess(String message, int affectedCount) {

@@ -20,12 +20,12 @@ public class UserManagementService {
     private static final String TAG = "UserManagementService";
     private UserDao userDao;
     private ExecutorService executorService;
-    
+
     // Account Status Constants
     public static final int STATUS_INACTIVE = 0;
     public static final int STATUS_ACTIVE = 1;
     public static final int STATUS_BLOCKED = 2;
-    
+
     // Role Constants
     public static final String ROLE_USER = "USER";
     public static final String ROLE_ADMIN = "ADMIN";
@@ -37,13 +37,13 @@ public class UserManagementService {
     }
 
     // ========== CRUD OPERATIONS ==========
-    
+
     /**
      * Tạo người dùng mới
      */
-    public void createUser(String email, String username, String password, 
-                          String fullName, String phoneNumber, String role,
-                          UserOperationCallback callback) {
+    public void createUser(String email, String username, String password,
+                           String fullName, String phoneNumber, String role,
+                           UserOperationCallback callback) {
         executorService.execute(() -> {
             try {
                 // Kiểm tra email và username đã tồn tại chưa
@@ -51,41 +51,41 @@ public class UserManagementService {
                     callback.onError("Email đã được sử dụng");
                     return;
                 }
-                
+
                 if (userDao.usernameExists(username)) {
                     callback.onError("Username đã được sử dụng");
                     return;
                 }
-                
+
                 // Hash password
                 String passwordHash = hashPassword(password);
                 if (passwordHash == null) {
                     callback.onError("Lỗi mã hóa mật khẩu");
                     return;
                 }
-                
+
                 // Tạo user mới
                 String currentDate = getCurrentDate();
-                User newUser = new User(email, username, passwordHash, fullName, 
-                                      phoneNumber, currentDate, role);
+                User newUser = new User(email, username, passwordHash, fullName,
+                        phoneNumber, currentDate, role);
                 newUser.setAccountStatus(STATUS_ACTIVE);
-                
+
                 long userId = userDao.insertUser(newUser);
-                
+
                 if (userId > 0) {
                     newUser.setUserId((int) userId);
                     callback.onSuccess("Tạo người dùng thành công", newUser);
                 } else {
                     callback.onError("Không thể tạo người dùng");
                 }
-                
+
             } catch (Exception e) {
                 Log.e(TAG, "Error creating user: " + e.getMessage());
                 callback.onError("Lỗi: " + e.getMessage());
             }
         });
     }
-    
+
     /**
      * Lấy thông tin người dùng theo ID
      */
@@ -104,7 +104,7 @@ public class UserManagementService {
             }
         });
     }
-    
+
     /**
      * Cập nhật thông tin người dùng
      */
@@ -123,7 +123,7 @@ public class UserManagementService {
             }
         });
     }
-    
+
     /**
      * Xóa người dùng
      */
@@ -135,7 +135,7 @@ public class UserManagementService {
                     callback.onError("Không thể xóa admin cuối cùng");
                     return;
                 }
-                
+
                 int result = userDao.deleteUser(userId);
                 if (result > 0) {
                     callback.onSuccess("Xóa người dùng thành công", null);
@@ -148,7 +148,38 @@ public class UserManagementService {
             }
         });
     }
-    
+
+    /**
+     * Xóa người dùng với kiểm tra admin hiện tại
+     */
+    public void deleteUser(int userId, int currentAdminId, UserOperationCallback callback) {
+        executorService.execute(() -> {
+            try {
+                // Kiểm tra admin không thể xóa chính mình
+                if (userId == currentAdminId) {
+                    callback.onError("Không thể xóa tài khoản của chính mình");
+                    return;
+                }
+
+                // Kiểm tra xem có phải admin cuối cùng không
+                if (isLastAdmin(userId)) {
+                    callback.onError("Không thể xóa admin cuối cùng");
+                    return;
+                }
+
+                int result = userDao.deleteUser(userId);
+                if (result > 0) {
+                    callback.onSuccess("Xóa người dùng thành công", null);
+                } else {
+                    callback.onError("Không thể xóa người dùng");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error deleting user: " + e.getMessage());
+                callback.onError("Lỗi: " + e.getMessage());
+            }
+        });
+    }
+
     /**
      * Lấy danh sách tất cả người dùng
      */
@@ -163,9 +194,9 @@ public class UserManagementService {
             }
         });
     }
-    
+
     // ========== ACCOUNT STATUS MANAGEMENT ==========
-    
+
     /**
      * Khóa tài khoản người dùng
      */
@@ -177,7 +208,7 @@ public class UserManagementService {
                     callback.onError("Không thể khóa admin cuối cùng");
                     return;
                 }
-                
+
                 int result = userDao.blockUser(userId);
                 if (result > 0) {
                     User user = userDao.getUserById(userId);
@@ -191,7 +222,39 @@ public class UserManagementService {
             }
         });
     }
-    
+
+    /**
+     * Khóa tài khoản người dùng với kiểm tra admin hiện tại
+     */
+    public void blockUser(int userId, int currentAdminId, UserOperationCallback callback) {
+        executorService.execute(() -> {
+            try {
+                // Kiểm tra admin không thể khóa chính mình
+                if (userId == currentAdminId) {
+                    callback.onError("Không thể khóa tài khoản của chính mình");
+                    return;
+                }
+
+                // Kiểm tra xem có phải admin cuối cùng không
+                if (isLastAdmin(userId)) {
+                    callback.onError("Không thể khóa admin cuối cùng");
+                    return;
+                }
+
+                int result = userDao.blockUser(userId);
+                if (result > 0) {
+                    User user = userDao.getUserById(userId);
+                    callback.onSuccess("Khóa tài khoản thành công", user);
+                } else {
+                    callback.onError("Không thể khóa tài khoản");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error blocking user: " + e.getMessage());
+                callback.onError("Lỗi: " + e.getMessage());
+            }
+        });
+    }
+
     /**
      * Mở khóa tài khoản người dùng
      */
@@ -211,7 +274,7 @@ public class UserManagementService {
             }
         });
     }
-    
+
     /**
      * Thay đổi trạng thái tài khoản
      */
@@ -223,7 +286,7 @@ public class UserManagementService {
                     callback.onError("Không thể khóa admin cuối cùng");
                     return;
                 }
-                
+
                 int result = userDao.updateUserStatus(userId, newStatus);
                 if (result > 0) {
                     User user = userDao.getUserById(userId);
@@ -238,9 +301,42 @@ public class UserManagementService {
             }
         });
     }
-    
+
+    /**
+     * Thay đổi trạng thái tài khoản với kiểm tra admin hiện tại
+     */
+    public void changeAccountStatus(int userId, int newStatus, int currentAdminId, UserOperationCallback callback) {
+        executorService.execute(() -> {
+            try {
+                // Kiểm tra admin không thể thay đổi trạng thái chính mình
+                if (userId == currentAdminId && newStatus == STATUS_BLOCKED) {
+                    callback.onError("Không thể khóa tài khoản của chính mình");
+                    return;
+                }
+
+                // Kiểm tra nếu đang khóa admin cuối cùng
+                if (newStatus == STATUS_BLOCKED && isLastAdmin(userId)) {
+                    callback.onError("Không thể khóa admin cuối cùng");
+                    return;
+                }
+
+                int result = userDao.updateUserStatus(userId, newStatus);
+                if (result > 0) {
+                    User user = userDao.getUserById(userId);
+                    String message = getStatusChangeMessage(newStatus);
+                    callback.onSuccess(message, user);
+                } else {
+                    callback.onError("Không thể thay đổi trạng thái");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error changing status: " + e.getMessage());
+                callback.onError("Lỗi: " + e.getMessage());
+            }
+        });
+    }
+
     // ========== SEARCH OPERATIONS ==========
-    
+
     /**
      * Tìm kiếm người dùng
      */
@@ -256,7 +352,7 @@ public class UserManagementService {
             }
         });
     }
-    
+
     /**
      * Lấy người dùng theo trạng thái
      */
@@ -271,7 +367,7 @@ public class UserManagementService {
             }
         });
     }
-    
+
     /**
      * Lấy người dùng theo vai trò
      */
@@ -286,9 +382,9 @@ public class UserManagementService {
             }
         });
     }
-    
+
     // ========== BULK OPERATIONS ==========
-    
+
     /**
      * Thay đổi trạng thái nhiều người dùng
      */
@@ -304,7 +400,7 @@ public class UserManagementService {
                         }
                     }
                 }
-                
+
                 int result = userDao.updateMultipleUsersStatus(userIds, newStatus);
                 if (result > 0) {
                     String message = getStatusChangeMessage(newStatus) + " cho " + result + " người dùng";
@@ -318,7 +414,43 @@ public class UserManagementService {
             }
         });
     }
-    
+
+    /**
+     * Thay đổi trạng thái nhiều người dùng với kiểm tra admin hiện tại
+     */
+    public void bulkChangeStatus(List<Integer> userIds, int newStatus, int currentAdminId, BulkOperationCallback callback) {
+        executorService.execute(() -> {
+            try {
+                // Kiểm tra admin không thể thay đổi trạng thái chính mình
+                if (newStatus == STATUS_BLOCKED && userIds.contains(currentAdminId)) {
+                    callback.onError("Không thể khóa tài khoản của chính mình");
+                    return;
+                }
+
+                // Kiểm tra nếu có admin trong danh sách và đang khóa
+                if (newStatus == STATUS_BLOCKED) {
+                    for (int userId : userIds) {
+                        if (isLastAdmin(userId)) {
+                            callback.onError("Không thể khóa admin cuối cùng");
+                            return;
+                        }
+                    }
+                }
+
+                int result = userDao.updateMultipleUsersStatus(userIds, newStatus);
+                if (result > 0) {
+                    String message = getStatusChangeMessage(newStatus) + " cho " + result + " người dùng";
+                    callback.onSuccess(message, result);
+                } else {
+                    callback.onError("Không thể thay đổi trạng thái");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error bulk status change: " + e.getMessage());
+                callback.onError("Lỗi: " + e.getMessage());
+            }
+        });
+    }
+
     /**
      * Xóa nhiều người dùng
      */
@@ -332,7 +464,7 @@ public class UserManagementService {
                         return;
                     }
                 }
-                
+
                 int result = userDao.deleteMultipleUsers(userIds);
                 if (result > 0) {
                     callback.onSuccess("Đã xóa " + result + " người dùng", result);
@@ -345,9 +477,42 @@ public class UserManagementService {
             }
         });
     }
-    
+
+    /**
+     * Xóa nhiều người dùng với kiểm tra admin hiện tại
+     */
+    public void bulkDeleteUsers(List<Integer> userIds, int currentAdminId, BulkOperationCallback callback) {
+        executorService.execute(() -> {
+            try {
+                // Kiểm tra admin không thể xóa chính mình
+                if (userIds.contains(currentAdminId)) {
+                    callback.onError("Không thể xóa tài khoản của chính mình");
+                    return;
+                }
+
+                // Kiểm tra admin cuối cùng
+                for (int userId : userIds) {
+                    if (isLastAdmin(userId)) {
+                        callback.onError("Không thể xóa admin cuối cùng");
+                        return;
+                    }
+                }
+
+                int result = userDao.deleteMultipleUsers(userIds);
+                if (result > 0) {
+                    callback.onSuccess("Đã xóa " + result + " người dùng", result);
+                } else {
+                    callback.onError("Không thể xóa người dùng");
+                }
+            } catch (Exception e) {
+                Log.e(TAG, "Error bulk delete: " + e.getMessage());
+                callback.onError("Lỗi: " + e.getMessage());
+            }
+        });
+    }
+
     // ========== UTILITY METHODS ==========
-    
+
     /**
      * Hash password using MD5
      */
@@ -355,7 +520,7 @@ public class UserManagementService {
         try {
             MessageDigest md = MessageDigest.getInstance("MD5");
             byte[] hashInBytes = md.digest(password.getBytes());
-            
+
             StringBuilder sb = new StringBuilder();
             for (byte b : hashInBytes) {
                 sb.append(String.format("%02x", b));
@@ -366,7 +531,7 @@ public class UserManagementService {
             return null;
         }
     }
-    
+
     /**
      * Lấy ngày hiện tại
      */
@@ -374,7 +539,7 @@ public class UserManagementService {
         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd", Locale.getDefault());
         return sdf.format(new Date());
     }
-    
+
     /**
      * Kiểm tra xem có phải admin cuối cùng không
      */
@@ -391,7 +556,7 @@ public class UserManagementService {
             return false;
         }
     }
-    
+
     /**
      * Lấy thông báo thay đổi trạng thái
      */
@@ -407,7 +572,7 @@ public class UserManagementService {
                 return "Thay đổi trạng thái thành công";
         }
     }
-    
+
     /**
      * Lấy tên trạng thái
      */
@@ -423,7 +588,7 @@ public class UserManagementService {
                 return "Không xác định";
         }
     }
-    
+
     /**
      * Đóng service
      */
@@ -432,19 +597,19 @@ public class UserManagementService {
             executorService.shutdown();
         }
     }
-    
+
     // ========== CALLBACK INTERFACES ==========
-    
+
     public interface UserOperationCallback {
         void onSuccess(String message, User user);
         void onError(String error);
     }
-    
+
     public interface UserListCallback {
         void onSuccess(List<User> users);
         void onError(String error);
     }
-    
+
     public interface BulkOperationCallback {
         void onSuccess(String message, int affectedCount);
         void onError(String error);

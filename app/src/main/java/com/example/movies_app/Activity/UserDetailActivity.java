@@ -2,6 +2,7 @@ package com.example.movies_app.Activity;
 
 import android.app.AlertDialog;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.Menu;
 import android.view.MenuItem;
@@ -21,7 +22,7 @@ import com.example.movies_app.service.UserManagementService;
 import com.google.android.material.card.MaterialCardView;
 
 public class UserDetailActivity extends AppCompatActivity {
-    
+    private int currentAdminId = -1;
     private ImageView imageViewAvatar;
     private TextView textViewUsername, textViewEmail, textViewFullName, textViewPhone;
     private TextView textViewRole, textViewStatus, textViewRegistrationDate, textViewLastLogin;
@@ -38,7 +39,7 @@ public class UserDetailActivity extends AppCompatActivity {
         
         initViews();
         setupToolbar();
-        
+        getCurrentAdminId();
         userService = new UserManagementService(this);
         userId = getIntent().getIntExtra("user_id", -1);
         
@@ -62,7 +63,10 @@ public class UserDetailActivity extends AppCompatActivity {
         textViewLastLogin = findViewById(R.id.textViewLastLogin);
         cardViewStatus = findViewById(R.id.cardViewStatus);
     }
-    
+    private void getCurrentAdminId() {
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        currentAdminId = prefs.getInt("user_id", -1);
+    }
     private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
@@ -220,7 +224,7 @@ public class UserDetailActivity extends AppCompatActivity {
     }
     
     private void changeUserStatus(int newStatus) {
-        userService.changeAccountStatus(userId, newStatus, new UserManagementService.UserOperationCallback() {
+        userService.changeAccountStatus(userId, newStatus,currentAdminId, new UserManagementService.UserOperationCallback() {
             @Override
             public void onSuccess(String message, User user) {
                 runOnUiThread(() -> {
