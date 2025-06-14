@@ -18,6 +18,10 @@ gson = "2.10.1"
 volley = "1.2.1"
 circleimageview = "3.1.0"
 
+# Thêm YouTube Player API
+youtubeplayer = "12.1.0"
+webkit = "1.7.0"
+
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -48,6 +52,10 @@ glide-compiler = { group = "com.github.bumptech.glide", name = "compiler", versi
 gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 volley = { group = "com.android.volley", name = "volley", version.ref = "volley" }
 circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.ref = "circleimageview" }
+
+# YouTube Player API
+youtubeplayer = { group = "com.pierfrancescosoffritti.androidyoutubeplayer", name = "core", version.ref = "youtubeplayer" }
+webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }

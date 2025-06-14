@@ -60,6 +60,7 @@ public class DetailActivity extends AppCompatActivity {
     // Thêm biến cho TMDb data và Local movie
     private TMDbMovie tmdbMovie;
     private Movie localMovie;
+    private MovieDetail currentMovieDetail; // THÊM BIẾN NÀY
     private boolean useTmdbData = false;
     private boolean useLocalData = false;
     private AppDatabase database;
@@ -133,6 +134,8 @@ public class DetailActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     if (movie != null) {
+                        // QUAN TRỌNG: Lưu movieDetail vào biến global
+                        currentMovieDetail = movieDetail;
                         displayMovieFromDatabase(movie, movieDetail);
                         // Cập nhật view count
                         updateViewCount();
@@ -202,6 +205,29 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void loadLocalMovieData() {
+        progressBar.setVisibility(View.VISIBLE);
+
+        // THÊM: Load MovieDetail cho localMovie
+        executorService.execute(() -> {
+            try {
+                MovieDetail movieDetail = database.movieDao().getMovieDetailById(localMovie.getId());
+
+                runOnUiThread(() -> {
+                    currentMovieDetail = movieDetail; // Lưu vào biến global
+                    displayLocalMovieData(movieDetail);
+                });
+
+            } catch (Exception e) {
+                Log.e("DetailActivity", "Error loading local movie detail: " + e.getMessage());
+                runOnUiThread(() -> {
+                    currentMovieDetail = null;
+                    displayLocalMovieData(null);
+                });
+            }
+        });
+    }
+
+    private void displayLocalMovieData(MovieDetail movieDetail) {
         progressBar.setVisibility(View.GONE);
         scrollView.setVisibility(View.VISIBLE);
 
@@ -221,18 +247,26 @@ public class DetailActivity extends AppCompatActivity {
         // Set basic info
         titleTxt.setText(localMovie.getTitle() != null ? localMovie.getTitle() : "Unknown Title");
         movieRateTxt.setText(localMovie.getImdbRating() != null ? localMovie.getImdbRating() : "N/A");
-        movieTimeTxt.setText("N/A");
+        movieTimeTxt.setText(movieDetail != null && movieDetail.getRuntime() != null ? movieDetail.getRuntime() : "N/A");
         movieDateTxt.setText(localMovie.getYear() != null ? localMovie.getYear() : "Unknown");
 
         // Set tab content
-        summeryContent.setText("Thể loại: " +
-                (localMovie.getGenres() != null ? localMovie.getGenres() : "Chưa xác định") +
-                "\n\nQuốc gia: " +
-                (localMovie.getCountry() != null ? localMovie.getCountry() : "Chưa xác định") +
-                "\n\nIMDb Rating: " +
-                (localMovie.getImdbRating() != null ? localMovie.getImdbRating() : "Chưa có"));
+        if (movieDetail != null && movieDetail.getPlot() != null) {
+            summeryContent.setText(movieDetail.getPlot());
+        } else {
+            summeryContent.setText("Thể loại: " +
+                    (localMovie.getGenres() != null ? localMovie.getGenres() : "Chưa xác định") +
+                    "\n\nQuốc gia: " +
+                    (localMovie.getCountry() != null ? localMovie.getCountry() : "Chưa xác định") +
+                    "\n\nIMDb Rating: " +
+                    (localMovie.getImdbRating() != null ? localMovie.getImdbRating() : "Chưa có"));
+        }
 
-        actorsContent.setText("Thông tin diễn viên chưa có sẵn cho phim này.");
+        if (movieDetail != null && movieDetail.getActors() != null) {
+            actorsContent.setText(movieDetail.getActors());
+        } else {
+            actorsContent.setText("Thông tin diễn viên chưa có sẵn cho phim này.");
+        }
 
         // Setup images
         setupImagesList(localMovie.getPoster(), localMovie.getImages());
@@ -244,6 +278,9 @@ public class DetailActivity extends AppCompatActivity {
     private void loadTmdbData() {
         progressBar.setVisibility(View.GONE);
         scrollView.setVisibility(View.VISIBLE);
+
+        // THÊM: Đặt currentMovieDetail = null cho TMDb data
+        currentMovieDetail = null;
 
         // Load images
         Glide.with(DetailActivity.this)
@@ -386,7 +423,10 @@ public class DetailActivity extends AppCompatActivity {
         btnWatchMovie.setOnClickListener(v -> handleWatchMovie());
     }
 
+    // ============ PHẦN MỚI: XỬ LÝ XEM PHIM TỪ DATABASE ============
     private void handleWatchMovie() {
+        Log.d("DetailActivity", "🎬 Handle watch movie clicked");
+
         // Hiển thị loading
         progressBar.setVisibility(View.VISIBLE);
 
@@ -399,8 +439,138 @@ public class DetailActivity extends AppCompatActivity {
             return;
         }
 
-        // Lấy video thực từ TMDb
-        loadAndPlayVideo(movieId, movieTitle);
+        // ✅ SỬA ĐỔI CHÍNH: Lấy video từ database thay vì TMDb API
+        loadVideoFromDatabase(movieId, movieTitle);
+    }
+
+    private void loadVideoFromDatabase(int movieId, String movieTitle) {
+        Log.d("DetailActivity", "🎬 Loading video from database for movieId: " + movieId);
+
+        // Nếu đã có currentMovieDetail, dùng luôn
+        if (currentMovieDetail != null) {
+            processVideoUrl(currentMovieDetail.getVideoUrl(), movieTitle);
+            return;
+        }
+
+        // Nếu chưa có, query từ database
+        executorService.execute(() -> {
+            try {
+                MovieDetail movieDetail = database.movieDao().getMovieDetailById(movieId);
+
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+
+                    if (movieDetail != null && movieDetail.getVideoUrl() != null && !movieDetail.getVideoUrl().isEmpty()) {
+                        processVideoUrl(movieDetail.getVideoUrl(), movieTitle);
+                    } else {
+                        // Fallback: Thử TMDb API nếu không có video trong database
+                        Log.w("DetailActivity", "No video URL in database, falling back to TMDb API");
+                        loadAndPlayVideoFromTMDb(movieId, movieTitle);
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("DetailActivity", "Error loading video from database: " + e.getMessage());
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(DetailActivity.this, "Lỗi khi tải video từ database", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void processVideoUrl(String videoUrl, String movieTitle) {
+        Log.d("DetailActivity", "🎬 Processing video URL: " + videoUrl);
+
+        if (videoUrl == null || videoUrl.isEmpty()) {
+            Toast.makeText(this, "Không có URL video cho phim này", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Xử lý URL và phát video
+        Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
+        intent.putExtra("title", movieTitle);
+
+        // Kiểm tra loại URL
+        if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
+            // Xử lý YouTube URL
+            String youtubeKey = extractYouTubeKey(videoUrl);
+            if (youtubeKey != null) {
+                intent.putExtra("youtubeKey", youtubeKey);
+                intent.putExtra("videoUrl", videoUrl);
+                Log.d("DetailActivity", "🎬 Playing YouTube video: " + youtubeKey);
+            } else {
+                intent.putExtra("videoUrl", videoUrl);
+                Log.d("DetailActivity", "🎬 Playing YouTube URL directly: " + videoUrl);
+            }
+        } else {
+            // Direct video URL (MP4, etc.)
+            intent.putExtra("videoUrl", videoUrl);
+            Log.d("DetailActivity", "🎬 Playing direct video URL: " + videoUrl);
+        }
+
+        startActivity(intent);
+        Toast.makeText(this, "Đang phát phim: " + movieTitle, Toast.LENGTH_SHORT).show();
+    }
+
+    private String extractYouTubeKey(String url) {
+        try {
+            // Xử lý các format YouTube URL khác nhau
+            if (url.contains("youtube.com/watch?v=")) {
+                return url.split("v=")[1].split("&")[0];
+            } else if (url.contains("youtu.be/")) {
+                return url.split("youtu.be/")[1].split("\\?")[0];
+            } else if (url.contains("youtube.com/embed/")) {
+                return url.split("embed/")[1].split("\\?")[0];
+            }
+        } catch (Exception e) {
+            Log.e("DetailActivity", "Error extracting YouTube key: " + e.getMessage());
+        }
+        return null;
+    }
+
+    // Fallback method (giữ nguyên logic cũ)
+    private void loadAndPlayVideoFromTMDb(int movieId, String movieTitle) {
+        Log.d("DetailActivity", "🎬 Fallback: Loading trailer from TMDb for movieId: " + movieId);
+
+        tmdbApiService.getMovieVideos(movieId, new TMDbApiService.VideoCallback() {
+            @Override
+            public void onSuccess(TMDbVideoResponse response) {
+                progressBar.setVisibility(View.GONE);
+
+                if (response != null && response.hasVideos()) {
+                    // Tìm trailer YouTube
+                    TMDbVideo trailer = response.getFirstYouTubeTrailer();
+                    if (trailer == null) {
+                        trailer = response.getFirstYouTubeVideo();
+                    }
+
+                    if (trailer != null) {
+                        // Phát trailer từ TMDb
+                        Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
+                        intent.putExtra("title", movieTitle + " - Trailer");
+                        intent.putExtra("videoUrl", trailer.getYouTubeUrl());
+                        intent.putExtra("youtubeKey", trailer.getKey());
+                        startActivity(intent);
+
+                        Toast.makeText(DetailActivity.this,
+                                "Đang phát trailer: " + trailer.getName(), Toast.LENGTH_SHORT).show();
+                        return;
+                    }
+                }
+
+                // Không có video
+                Toast.makeText(DetailActivity.this,
+                        "Không tìm thấy video cho phim này", Toast.LENGTH_LONG).show();
+            }
+
+            @Override
+            public void onError(String error) {
+                progressBar.setVisibility(View.GONE);
+                Toast.makeText(DetailActivity.this,
+                        "Lỗi tải video: " + error, Toast.LENGTH_LONG).show();
+            }
+        });
     }
 
     private int getCurrentMovieId() {
@@ -428,78 +598,6 @@ public class DetailActivity extends AppCompatActivity {
         } else {
             return titleTxt.getText().toString();
         }
-    }
-
-    private void loadAndPlayVideo(int movieId, String movieTitle) {
-        // THÊM LOG ĐỂ DEBUG
-        Log.d("DetailActivity", "🎬 Loading trailer for movieId: " + movieId + ", title: " + movieTitle);
-
-        tmdbApiService.getMovieVideos(movieId, new TMDbApiService.VideoCallback() {
-            @Override
-            public void onSuccess(TMDbVideoResponse response) {
-                progressBar.setVisibility(View.GONE);
-
-                Log.d("DetailActivity", "✅ Video API response received!");
-
-                if (response != null && response.hasVideos()) {
-                    Log.d("DetailActivity", "📹 Found " + response.getResults().size() + " videos");
-
-                    // In ra tất cả video để debug
-                    for (TMDbVideo video : response.getResults()) {
-                        Log.d("DetailActivity", "Video: " + video.getName() +
-                                " | Type: " + video.getType() +
-                                " | Site: " + video.getSite() +
-                                " | Key: " + video.getKey());
-                    }
-
-                    // Tìm trailer YouTube
-                    TMDbVideo trailer = response.getFirstYouTubeTrailer();
-                    if (trailer == null) {
-                        trailer = response.getFirstYouTubeVideo();
-                    }
-
-                    if (trailer != null) {
-                        Log.d("DetailActivity", "🎯 Playing trailer: " + trailer.getName());
-                        Log.d("DetailActivity", "🔗 YouTube URL: " + trailer.getYouTubeUrl());
-
-                        // Phát trailer thực
-                        Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
-                        intent.putExtra("id", movieId);
-                        intent.putExtra("title", movieTitle + " - Trailer");
-                        intent.putExtra("videoUrl", trailer.getYouTubeUrl());
-                        intent.putExtra("youtubeKey", trailer.getKey());
-                        startActivity(intent);
-
-                        Toast.makeText(DetailActivity.this,
-                                "Đang phát trailer: " + trailer.getName(), Toast.LENGTH_SHORT).show();
-                        return;
-                    }
-                }
-
-                // Nếu không có video
-                Log.w("DetailActivity", "❌ No trailer found for movie ID: " + movieId);
-                Toast.makeText(DetailActivity.this,
-                        "Không tìm thấy trailer cho phim này", Toast.LENGTH_LONG).show();
-            }
-
-            @Override
-            public void onError(String error) {
-                progressBar.setVisibility(View.GONE);
-                Log.e("DetailActivity", "❌ Error loading trailer: " + error);
-                Toast.makeText(DetailActivity.this,
-                        "Lỗi tải trailer: " + error, Toast.LENGTH_LONG).show();
-            }
-        });
-    }
-
-    private void playFallbackVideo(int movieId, String movieTitle) {
-        Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
-        intent.putExtra("id", movieId);
-        intent.putExtra("title", movieTitle);
-        intent.putExtra("videoUrl", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-        startActivity(intent);
-
-        Toast.makeText(this, "Đang phát video mẫu", Toast.LENGTH_SHORT).show();
     }
 
     private void updateViewCount() {

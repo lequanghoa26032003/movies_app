@@ -41,7 +41,7 @@ dependencies {
     androidTestImplementation libs.ext.junit
     androidTestImplementation libs.espresso.core
 
-    // Media3 ExoPlayer (sử dụng libs)
+    // Media3 ExoPlayer (sử dụng libs) - Giữ lại cho các video không phải YouTube
     implementation libs.media3.exoplayer
     implementation libs.media3.exoplayer.dash
     implementation libs.media3.exoplayer.hls
@@ -64,4 +64,8 @@ dependencies {
     // JSON & Network (sử dụng libs)
     implementation libs.gson
     implementation libs.volley
+
+    // YouTube Player API (sử dụng libs)
+    implementation libs.youtubeplayer
+    implementation libs.webkit
 }
