@@ -49,7 +49,9 @@
         android:id="@+id/searchCard"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="8dp"
         app:cardCornerRadius="12dp"
         app:cardElevation="4dp"
         app:layout_constraintEnd_toEndOf="parent"
@@ -65,27 +67,31 @@
             <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <EditText
                     android:id="@+id/searchEditText"
                     android:layout_width="0dp"
-                    android:layout_height="wrap_content"
+                    android:layout_height="40dp"
                     android:layout_weight="1"
                     android:background="@android:color/transparent"
                     android:hint="Tìm kiếm người dùng..."
-                    android:padding="8dp"
+                    android:paddingStart="8dp"
+                    android:paddingEnd="8dp"
                     android:textColor="@android:color/black"
-                    android:textColorHint="@android:color/darker_gray" />
+                    android:textColorHint="@android:color/darker_gray"
+                    android:textSize="14sp" />
 
                 <Button
                     android:id="@+id/searchButton"
                     android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
+                    android:layout_height="36dp"
                     android:background="@drawable/btn_background"
                     android:text="Tìm"
                     android:textColor="@android:color/white"
-                    android:textSize="14sp" />
+                    android:textSize="13sp"
+                    android:minWidth="60dp" />
 
             </LinearLayout>
 
@@ -93,14 +99,15 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginTop="8dp"
-                android:orientation="horizontal">
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Lọc theo quyền:"
                     android:textColor="@android:color/black"
-                    android:textSize="14sp" />
+                    android:textSize="13sp" />
 
                 <Spinner
                     android:id="@+id/roleSpinner"
@@ -121,7 +128,9 @@
         android:id="@+id/statsLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:weightSum="4"
         app:layout_constraintEnd_toEndOf="parent"
@@ -130,8 +139,8 @@
 
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
-            android:layout_height="70dp"
-            android:layout_marginEnd="4dp"
+            android:layout_height="65dp"
+            android:layout_marginEnd="3dp"
             android:layout_weight="1"
             app:cardCornerRadius="8dp"
             app:cardElevation="2dp">
@@ -148,7 +157,7 @@
                     android:layout_height="wrap_content"
                     android:text="1,234"
                     android:textColor="@color/blue"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -164,9 +173,9 @@
 
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
-            android:layout_height="70dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_height="65dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             app:cardCornerRadius="8dp"
             app:cardElevation="2dp">
@@ -183,7 +192,7 @@
                     android:layout_height="wrap_content"
                     android:text="987"
                     android:textColor="@color/green"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -199,9 +208,9 @@
 
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
-            android:layout_height="70dp"
-            android:layout_marginStart="2dp"
-            android:layout_marginEnd="2dp"
+            android:layout_height="65dp"
+            android:layout_marginStart="1dp"
+            android:layout_marginEnd="1dp"
             android:layout_weight="1"
             app:cardCornerRadius="8dp"
             app:cardElevation="2dp">
@@ -218,7 +227,7 @@
                     android:layout_height="wrap_content"
                     android:text="12"
                     android:textColor="@color/red"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -234,8 +243,8 @@
 
         <androidx.cardview.widget.CardView
             android:layout_width="0dp"
-            android:layout_height="70dp"
-            android:layout_marginStart="4dp"
+            android:layout_height="65dp"
+            android:layout_marginStart="3dp"
             android:layout_weight="1"
             app:cardCornerRadius="8dp"
             app:cardElevation="2dp">
@@ -252,7 +261,7 @@
                     android:layout_height="wrap_content"
                     android:text="3"
                     android:textColor="@color/purple"
-                    android:textSize="16sp"
+                    android:textSize="15sp"
                     android:textStyle="bold" />
 
                 <TextView
@@ -273,7 +282,9 @@
         android:id="@+id/actionButtonsLayout"
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:layout_margin="16dp"
+        android:layout_marginStart="12dp"
+        android:layout_marginEnd="12dp"
+        android:layout_marginTop="8dp"
         android:orientation="horizontal"
         android:weightSum="2"
         app:layout_constraintEnd_toEndOf="parent"
@@ -283,34 +294,25 @@
         <Button
             android:id="@+id/blockUserButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginEnd="8dp"
+            android:layout_height="42dp"
+            android:layout_marginEnd="6dp"
             android:layout_weight="1"
             android:background="@drawable/btn_background_red"
             android:text="Khóa người dùng"
             android:textColor="@android:color/white"
-            android:textSize="14sp" />
+            android:textSize="13sp" />
 
         <Button
             android:id="@+id/unblockUserButton"
             android:layout_width="0dp"
-            android:layout_height="wrap_content"
-            android:layout_marginStart="8dp"
+            android:layout_height="42dp"
+            android:layout_marginStart="6dp"
             android:layout_weight="1"
             android:background="@drawable/btn_background_green"
             android:text="Mở khóa"
             android:textColor="@android:color/white"
-            android:textSize="14sp" />
-        <com.google.android.material.floatingactionbutton.FloatingActionButton
-            android:id="@+id/fabAddUser"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_alignParentBottom="true"
-            android:layout_alignParentEnd="true"
-            android:layout_margin="16dp"
-            android:src="@drawable/ic_add"
-            android:contentDescription="Thêm người dùng mới"
-            app:tint="@android:color/white" />
+            android:textSize="13sp" />
+
     </LinearLayout>
 
     <!-- Users List -->
@@ -318,13 +320,28 @@
         android:id="@+id/usersRecyclerView"
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_margin="16dp"
+        android:layout_marginStart="8dp"
+        android:layout_marginEnd="8dp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="8dp"
         android:background="@drawable/bg_rounded_white"
-        android:padding="8dp"
+        android:padding="4dp"
         app:layout_constraintBottom_toBottomOf="parent"
         app:layout_constraintEnd_toEndOf="parent"
         app:layout_constraintStart_toStartOf="parent"
         app:layout_constraintTop_toBottomOf="@id/actionButtonsLayout"
         tools:listitem="@layout/item_user_management" />
+
+    <!-- Floating Action Button -->
+    <com.google.android.material.floatingactionbutton.FloatingActionButton
+        android:id="@+id/fabAddUser"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_margin="16dp"
+        android:src="@drawable/ic_add"
+        android:contentDescription="Thêm người dùng mới"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:tint="@android:color/white" />
 
 </androidx.constraintlayout.widget.ConstraintLayout>

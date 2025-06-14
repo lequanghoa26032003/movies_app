@@ -1,6 +1,9 @@
 package com.example.movies_app.Activity;
 
+import android.app.AlertDialog;
+import android.content.Intent;
 import android.graphics.Color;
+import android.net.Uri;
 import android.os.Bundle;
 import android.widget.Button;
 import android.widget.ImageView;
@@ -9,13 +12,17 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
+import androidx.core.content.FileProvider;
 
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.R;
+import com.example.movies_app.service.ReportExportService;
 
+import java.io.File;
 import java.util.Locale;
 
 public class StatisticsActivity extends AppCompatActivity {
+
     private ImageView backButton;
     private TextView totalUsersText, totalMoviesText, activeUsersText, totalViewsText;
     private TextView mostViewedMovieText, mostActiveUserText, registrationTrendText;
@@ -25,6 +32,7 @@ public class StatisticsActivity extends AppCompatActivity {
     private Button generateReportButton, exportDataButton;
 
     private AppDatabase database;
+    private ReportExportService reportExportService;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,6 +40,7 @@ public class StatisticsActivity extends AppCompatActivity {
         setContentView(R.layout.activity_statistics);
 
         database = AppDatabase.getInstance(this);
+        reportExportService = new ReportExportService(this);
 
         initViews();
         setupClickListeners();
@@ -70,8 +79,8 @@ public class StatisticsActivity extends AppCompatActivity {
         trendsCard.setOnClickListener(v -> showTrendStatisticsDetail());
 
         // THÊM CLICK LISTENER CHO CÁC BUTTON
-        generateReportButton.setOnClickListener(v -> generateReport());
-        exportDataButton.setOnClickListener(v -> exportData());
+        generateReportButton.setOnClickListener(v -> showReportOptions());
+        exportDataButton.setOnClickListener(v -> showExportOptions());
     }
 
     private void loadStatistics() {
@@ -200,6 +209,8 @@ public class StatisticsActivity extends AppCompatActivity {
         trendsCard.setCardBackgroundColor(Color.parseColor("#9C27B0")); // Purple
     }
 
+    // ===== HIỂN THỊ CHI TIẾT THỐNG KÊ =====
+
     private void showUserStatisticsDetail() {
         // CHI TIẾT THỐNG KÊ NGƯỜI DÙNG
         new Thread(() -> {
@@ -314,14 +325,160 @@ public class StatisticsActivity extends AppCompatActivity {
         }).start();
     }
 
-    // THÊM CÁC PHƯƠNG THỨC HỖ TRỢ
+    // ===== CHỨC NĂNG TẠO BÁO CÁO VÀ XUẤT DỮ LIỆU =====
+
+    private void showReportOptions() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📋 Tạo Báo Cáo");
+        builder.setMessage("Chọn loại báo cáo bạn muốn tạo:");
+
+        builder.setPositiveButton("📊 Báo cáo HTML", (dialog, which) -> {
+            generateDetailedReport();
+        });
+
+        builder.setNegativeButton("❌ Hủy", null);
+
+        builder.show();
+    }
+
+    private void showExportOptions() {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle("📤 Xuất Dữ Liệu");
+        builder.setMessage("Chọn định dạng xuất dữ liệu:");
+
+        String[] options = {"📄 CSV (Excel)", "🔗 JSON"};
+        builder.setItems(options, (dialog, which) -> {
+            switch (which) {
+                case 0: // CSV
+                    exportDataToCSV();
+                    break;
+                case 1: // JSON
+                    exportDataToJSON();
+                    break;
+            }
+        });
+
+        builder.setNegativeButton("❌ Hủy", null);
+        builder.show();
+    }
+
+    private void generateDetailedReport() {
+        Toast.makeText(this, "🔄 Đang tạo báo cáo chi tiết...", Toast.LENGTH_SHORT).show();
+
+        reportExportService.generateDetailedReport(new ReportExportService.ReportCallback() {
+            @Override
+            public void onSuccess(String message, String filePath) {
+                runOnUiThread(() -> {
+                    showSuccessDialog("📋 Tạo Báo Cáo Thành Công", message, filePath, "text/html");
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(StatisticsActivity.this, "❌ " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void exportDataToCSV() {
+        Toast.makeText(this, "📤 Đang xuất dữ liệu CSV...", Toast.LENGTH_SHORT).show();
+
+        reportExportService.exportDataToCSV(new ReportExportService.ExportCallback() {
+            @Override
+            public void onSuccess(String message, String filePath) {
+                runOnUiThread(() -> {
+                    showSuccessDialog("📊 Xuất CSV Thành Công", message, filePath, "text/csv");
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(StatisticsActivity.this, "❌ " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void exportDataToJSON() {
+        Toast.makeText(this, "🔗 Đang xuất dữ liệu JSON...", Toast.LENGTH_SHORT).show();
+
+        reportExportService.exportDataToJSON(new ReportExportService.ExportCallback() {
+            @Override
+            public void onSuccess(String message, String filePath) {
+                runOnUiThread(() -> {
+                    showSuccessDialog("🔗 Xuất JSON Thành Công", message, filePath, "application/json");
+                });
+            }
+
+            @Override
+            public void onError(String error) {
+                runOnUiThread(() -> {
+                    Toast.makeText(StatisticsActivity.this, "❌ " + error, Toast.LENGTH_LONG).show();
+                });
+            }
+        });
+    }
+
+    private void showSuccessDialog(String title, String message, String filePath, String mimeType) {
+        AlertDialog.Builder builder = new AlertDialog.Builder(this);
+        builder.setTitle(title);
+        builder.setMessage(message + "\n\n📁 Vị trí: " + filePath);
+
+        builder.setPositiveButton("📂 Mở File", (dialog, which) -> {
+            openFile(filePath, mimeType);
+        });
+
+        builder.setNegativeButton("📤 Chia Sẻ", (dialog, which) -> {
+            shareFile(filePath, mimeType);
+        });
+
+        builder.setNeutralButton("✅ OK", null);
+
+        builder.show();
+    }
+
+    private void openFile(String filePath, String mimeType) {
+        try {
+            File file = new File(filePath);
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+
+            Intent intent = new Intent(Intent.ACTION_VIEW);
+            intent.setDataAndType(uri, mimeType);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            startActivity(Intent.createChooser(intent, "Mở file với:"));
+        } catch (Exception e) {
+            Toast.makeText(this, "Không thể mở file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    private void shareFile(String filePath, String mimeType) {
+        try {
+            File file = new File(filePath);
+            Uri uri = FileProvider.getUriForFile(this, getPackageName() + ".fileprovider", file);
+
+            Intent intent = new Intent(Intent.ACTION_SEND);
+            intent.setType(mimeType);
+            intent.putExtra(Intent.EXTRA_STREAM, uri);
+            intent.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            startActivity(Intent.createChooser(intent, "Chia sẻ file:"));
+        } catch (Exception e) {
+            Toast.makeText(this, "Không thể chia sẻ file: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+        }
+    }
+
+    // ===== CÁC PHƯƠNG THỨC HỖ TRỢ =====
+
     private int getViewedMoviesCount() {
         try {
             return database.movieDao().getViewedMoviesCount();
         } catch (Exception e) {
-            // Fallback: đếm phim có ít nhất 1 lượt xem trong watch_history
             try {
-                return database.movieDao().getTotalMoviesCount(); // Tạm thời return tổng số phim
+                return database.movieDao().getTotalMoviesCount();
             } catch (Exception ex) {
                 return 0;
             }
@@ -360,81 +517,11 @@ public class StatisticsActivity extends AppCompatActivity {
         }
     }
 
-    private void generateReport() {
-        new Thread(() -> {
-            try {
-                runOnUiThread(() ->
-                        Toast.makeText(this, "🔄 Đang tạo báo cáo thống kê...", Toast.LENGTH_SHORT).show()
-                );
-
-                // Simulate report generation process
-                Thread.sleep(1500);
-
-                // Thu thập dữ liệu cho báo cáo
-                int totalUsers = database.userDao().getTotalUsersCount();
-                int totalMovies = database.movieDao().getTotalMoviesCount();
-                int totalViews = getTotalViewsFromViewCount();
-                String mostViewedMovie = getMostViewedMovieFromViewCount();
-
-                runOnUiThread(() -> {
-                    String reportSummary = String.format(Locale.getDefault(),
-                            "📋 BÁO CÁO THỐNG KÊ HỆ THỐNG\n\n" +
-                                    "📅 Ngày tạo: %s\n" +
-                                    "👥 Tổng người dùng: %d\n" +
-                                    "🎬 Tổng phim: %d\n" +
-                                    "👁️ Tổng lượt xem: %s\n" +
-                                    "🏆 Phim phổ biến nhất: %s\n\n" +
-                                    "✅ Báo cáo đã được tạo thành công!",
-                            java.text.DateFormat.getDateInstance().format(new java.util.Date()),
-                            totalUsers, totalMovies, formatNumber(totalViews),
-                            mostViewedMovie != null ? mostViewedMovie : "N/A");
-
-                    Toast.makeText(this, reportSummary, Toast.LENGTH_LONG).show();
-                });
-
-            } catch (Exception e) {
-                runOnUiThread(() ->
-                        Toast.makeText(this, "❌ Lỗi tạo báo cáo: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
-            }
-        }).start();
-    }
-
-    private void exportData() {
-        new Thread(() -> {
-            try {
-                runOnUiThread(() ->
-                        Toast.makeText(this, "📤 Đang xuất dữ liệu...", Toast.LENGTH_SHORT).show()
-                );
-
-                // Simulate data export process
-                Thread.sleep(2000);
-
-                // Thu thập dữ liệu để xuất
-                int totalUsers = database.userDao().getTotalUsersCount();
-                int totalMovies = database.movieDao().getTotalMoviesCount();
-                int totalViews = getTotalViewsFromViewCount();
-
-                runOnUiThread(() -> {
-                    String exportSummary = String.format(Locale.getDefault(),
-                            "📊 XUẤT DỮ LIỆU THÀNH CÔNG\n\n" +
-                                    "📁 Định dạng: CSV\n" +
-                                    "📋 Nội dung:\n" +
-                                    "• %d người dùng\n" +
-                                    "• %d phim\n" +
-                                    "• %s lượt xem\n" +
-                                    "• Lịch sử hoạt động\n\n" +
-                                    "💾 Dữ liệu đã được lưu!",
-                            totalUsers, totalMovies, formatNumber(totalViews));
-
-                    Toast.makeText(this, exportSummary, Toast.LENGTH_LONG).show();
-                });
-
-            } catch (Exception e) {
-                runOnUiThread(() ->
-                        Toast.makeText(this, "❌ Lỗi xuất dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
-            }
-        }).start();
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (reportExportService != null) {
+            reportExportService.shutdown();
+        }
     }
 }
