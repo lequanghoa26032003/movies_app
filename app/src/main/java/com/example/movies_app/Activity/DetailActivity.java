@@ -22,7 +22,9 @@ import com.android.volley.toolbox.StringRequest;
 import com.android.volley.toolbox.Volley;
 import com.bumptech.glide.Glide;
 import com.example.movies_app.Adapter.ImageListAdapter;
+import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Database.entity.Movie;
+import com.example.movies_app.Database.entity.MovieDetail;
 import com.example.movies_app.Domain.FilmItem;
 import com.example.movies_app.Domain.TMDbMovie;
 import com.example.movies_app.R;
@@ -32,6 +34,8 @@ import com.google.gson.Gson;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class DetailActivity extends AppCompatActivity {
     private RequestQueue mRequestQueue;
@@ -55,7 +59,8 @@ public class DetailActivity extends AppCompatActivity {
     private Movie localMovie;
     private boolean useTmdbData = false;
     private boolean useLocalData = false;
-
+    private AppDatabase database;
+    private ExecutorService executorService;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -63,17 +68,113 @@ public class DetailActivity extends AppCompatActivity {
 
         // Kiểm tra dữ liệu từ Intent
         checkIntentData();
-
+        database = AppDatabase.getInstance(this);
+        executorService = Executors.newSingleThreadExecutor();
         initView();
         setupTabLayout();
 
-        // Load dữ liệu dựa trên source
         if (useLocalData && localMovie != null) {
             loadLocalMovieData();
         } else if (useTmdbData && tmdbMovie != null) {
             loadTmdbData();
         } else {
-            sendRequest();
+            // THAY ĐỔI: Gọi method mới thay vì sendRequest()
+            loadMovieFromDatabase();
+        }
+    }
+    private void loadMovieFromDatabase() {
+        if (idFilm <= 0) {
+            Log.e("DetailActivity", "Invalid movie ID: " + idFilm);
+            progressBar.setVisibility(View.GONE);
+            Toast.makeText(this, "Lỗi: ID phim không hợp lệ", Toast.LENGTH_SHORT).show();
+            finish();
+            return;
+        }
+
+        progressBar.setVisibility(View.VISIBLE);
+        scrollView.setVisibility(View.GONE);
+
+        executorService.execute(() -> {
+            try {
+                // Lấy thông tin phim từ database
+                Movie movie = database.movieDao().getMovieById(idFilm);
+                MovieDetail movieDetail = database.movieDao().getMovieDetailById(idFilm);
+
+                runOnUiThread(() -> {
+                    if (movie != null) {
+                        displayMovieFromDatabase(movie, movieDetail);
+                    } else {
+                        progressBar.setVisibility(View.GONE);
+                        Toast.makeText(DetailActivity.this, "Không tìm thấy thông tin phim", Toast.LENGTH_SHORT).show();
+                        finish();
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("DetailActivity", "Error loading movie: " + e.getMessage());
+                runOnUiThread(() -> {
+                    progressBar.setVisibility(View.GONE);
+                    Toast.makeText(DetailActivity.this, "Lỗi khi tải thông tin phim", Toast.LENGTH_SHORT).show();
+                    finish();
+                });
+            }
+        });
+    }
+    private void displayMovieFromDatabase(Movie movie, MovieDetail movieDetail) {
+        progressBar.setVisibility(View.GONE);
+        scrollView.setVisibility(View.VISIBLE);
+
+        // Load hình ảnh
+        Glide.with(DetailActivity.this)
+                .load(movie.getPoster())
+                .placeholder(R.drawable.placeholder_movie)
+                .error(R.drawable.placeholder_movie)
+                .into(pic1);
+
+        Glide.with(DetailActivity.this)
+                .load(movie.getPoster())
+                .placeholder(R.drawable.placeholder_movie)
+                .error(R.drawable.placeholder_movie)
+                .into(pic2);
+
+        // Set thông tin cơ bản
+        titleTxt.setText(movie.getTitle() != null ? movie.getTitle() : "Unknown Title");
+        movieRateTxt.setText(movie.getImdbRating() != null ? movie.getImdbRating() : "N/A");
+        movieDateTxt.setText(movie.getYear() != null ? movie.getYear() : "Unknown");
+
+        // Set runtime từ MovieDetail
+        if (movieDetail != null && movieDetail.getRuntime() != null) {
+            movieTimeTxt.setText(movieDetail.getRuntime());
+        } else {
+            movieTimeTxt.setText("N/A");
+        }
+
+        // Cập nhật nội dung cho các tab
+        if (movieDetail != null && movieDetail.getPlot() != null) {
+            summeryContent.setText(movieDetail.getPlot());
+        } else {
+            summeryContent.setText("Nội dung: " +
+                    (movie.getGenres() != null ? movie.getGenres() : "Chưa có") +
+                    "\nQuốc gia: " +
+                    (movie.getCountry() != null ? movie.getCountry() : "Chưa có"));
+        }
+
+        if (movieDetail != null && movieDetail.getActors() != null) {
+            actorsContent.setText(movieDetail.getActors());
+        } else {
+            actorsContent.setText("Thông tin diễn viên chưa có sẵn.");
+        }
+
+        // Cập nhật RecyclerView cho tab "Liên quan"
+        List<String> images = new ArrayList<>();
+        if (movie.getPoster() != null) images.add(movie.getPoster());
+        if (movie.getImages() != null && !movie.getImages().equals(movie.getPoster())) {
+            images.add(movie.getImages());
+        }
+
+        if (!images.isEmpty()) {
+            adapterImgList = new ImageListAdapter(images);
+            recyclerView.setAdapter(adapterImgList);
         }
     }
 
@@ -256,33 +357,25 @@ public class DetailActivity extends AppCompatActivity {
         AppCompatButton btnWatchMovie = findViewById(R.id.btnWatchMovie);
         btnWatchMovie.setOnClickListener(v -> {
             try {
-                Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
+                // Cập nhật view count
+                updateViewCount();
 
-                // Xử lý ID và video URL tùy theo source
-                if (useLocalData && localMovie != null) {
-                    intent.putExtra("id", localMovie.getId());
-                    intent.putExtra("title", localMovie.getTitle());
-                    // Sử dụng video mặc định cho local movie
-                    intent.putExtra("videoUrl", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-                } else if (useTmdbData && tmdbMovie != null) {
-                    intent.putExtra("id", tmdbMovie.getId());
-                    intent.putExtra("title", tmdbMovie.getTitle());
-                    // Sử dụng video URL từ TMDb nếu có
-                    String videoUrl = tmdbMovie.getVideoUrl() != null
-                            ? tmdbMovie.getVideoUrl()
-                            : "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
-                    intent.putExtra("videoUrl", videoUrl);
-                } else {
-                    intent.putExtra("id", idFilm);
-                    intent.putExtra("title", titleTxt.getText().toString());
-                    intent.putExtra("videoUrl", "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4");
-                }
+                Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
+                intent.putExtra("id", idFilm);
+                intent.putExtra("title", titleTxt.getText().toString() + " - Trailer");
+
+                // Tạo URL trailer YouTube search
+                String movieTitle = titleTxt.getText().toString();
+                String trailerSearchUrl = "https://www.youtube.com/results?search_query=" +
+                        movieTitle.replace(" ", "+") + "+trailer";
+
+                // Sử dụng URL trailer hoặc video mẫu
+                intent.putExtra("videoUrl", getTrailerUrl(movieTitle));
 
                 startActivity(intent);
             } catch (Exception e) {
-                Log.e("DetailActivity", "Lỗi khi mở PlayerActivity: " + e.getMessage());
-                e.printStackTrace();
-                Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                Log.e("DetailActivity", "Error opening player: " + e.getMessage());
+                Toast.makeText(DetailActivity.this, "Lỗi khi mở video", Toast.LENGTH_SHORT).show();
             }
         });
 
@@ -295,6 +388,43 @@ public class DetailActivity extends AppCompatActivity {
         // Khởi tạo RecyclerView cho tab "Liên quan"
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+    }
+    private String getTrailerUrl(String movieTitle) {
+        // Kiểm tra trong database có video URL không
+        executorService.execute(() -> {
+            try {
+                MovieDetail detail = database.movieDao().getMovieDetailById(idFilm);
+                if (detail != null && detail.getVideoUrl() != null) {
+                    // Có video URL trong database
+                    return;
+                }
+            } catch (Exception e) {
+                Log.e("DetailActivity", "Error getting video URL: " + e.getMessage());
+            }
+        });
+
+        // Fallback: Dùng video mẫu
+        return "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    }
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
+    }
+    private void updateViewCount() {
+        executorService.execute(() -> {
+            try {
+                Movie movie = database.movieDao().getMovieById(idFilm);
+                if (movie != null) {
+                    movie.incrementViewCount();
+                    database.movieDao().updateMovie(movie);
+                }
+            } catch (Exception e) {
+                Log.e("DetailActivity", "Error updating view count: " + e.getMessage());
+            }
+        });
     }
 
     private void setupTabLayout() {

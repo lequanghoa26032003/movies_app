@@ -27,25 +27,33 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-import com.example.movies_app.Adapter.FilmListAdapter;
+import com.example.movies_app.Adapter.HorizontalGridMovieAdapter; // IMPORT ADAPTER MỚI
 import com.example.movies_app.Database.AppDatabase;
-import com.example.movies_app.Domain.ListFilm;
+import com.example.movies_app.Database.entity.Movie;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.gson.Gson;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public class MainActivity extends AppCompatActivity {
-    private RecyclerView.Adapter adapterNewMovies, adapterUpComing, adapterSearchResults;
+
+    // SỬ DỤNG ADAPTER MỚI
+    private HorizontalGridMovieAdapter adapterNewMovies, adapterUpComing, adapterSearchResults;
     private RecyclerView recyclerViewNewMovies, recyclerViewUpComing, homeSearchRecyclerView;
-    private RequestQueue mRequestQueue;
-    private StringRequest mStringRequest, mStringRequest2;
     private ProgressBar loading1, loading2, homeSearchProgressBar;
 
+    // Database và Executor
+    private AppDatabase database;
+    private ExecutorService executorService;
+
+    // Danh sách phim local
+    private List<Movie> allLocalMovies;
+    private List<Movie> newMovies;
+    private List<Movie> upcomingMovies;
     // Search components
     private EditText homeSearchEditText;
     private LinearLayout homeSearchResultsContainer, homeMainContent;
@@ -61,12 +69,12 @@ public class MainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
         initializeDatabase();
         initViews();
         setupBottomNavigation();
         setupSearchListeners();
-        sendRequest1();
-        sendRequest2();
+        loadMoviesFromDatabase();
         highlightHomeTab();
 
         // Setup close icon
@@ -76,20 +84,27 @@ public class MainActivity extends AppCompatActivity {
         }
         hideCloseIcon();
     }
+
     private void initializeDatabase() {
+        database = AppDatabase.getInstance(this);
+        executorService = Executors.newSingleThreadExecutor();
+
+        // Khởi tạo danh sách
+        allLocalMovies = new ArrayList<>();
+        newMovies = new ArrayList<>();
+        upcomingMovies = new ArrayList<>();
+
         new Thread(() -> {
             try {
-                AppDatabase db = AppDatabase.getInstance(this);
-                // Kích hoạt database bằng cách thực hiện một truy vấn
-                db.userDao().getAllUsers();
+                database.userDao().getAllUsers();
                 Log.d("Database", "Database initialized successfully");
             } catch (Exception e) {
                 Log.e("Database", "Error initializing database: " + e.getMessage());
             }
         }).start();
     }
+
     private void initViews() {
-        // ✅ THÊM BottomAppBar reference
         bottomAppBar = findViewById(R.id.app_bar);
 
         // Bottom navigation views
@@ -102,9 +117,12 @@ public class MainActivity extends AppCompatActivity {
 
         // Content views
         recyclerViewNewMovies = findViewById(R.id.view1);
+        // THAY ĐỔI: Sử dụng LinearLayoutManager với orientation HORIZONTAL
         recyclerViewNewMovies.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
         recyclerViewUpComing = findViewById(R.id.view2);
         recyclerViewUpComing.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+
         loading1 = findViewById(R.id.loading1);
         loading2 = findViewById(R.id.loading2);
 
@@ -116,39 +134,101 @@ public class MainActivity extends AppCompatActivity {
         homeResultsCountTxt = findViewById(R.id.homeResultsCountTxt);
         homeSearchProgressBar = findViewById(R.id.homeSearchProgressBar);
 
-        // Setup search RecyclerView
+        // Setup search RecyclerView với GridLayoutManager
         homeSearchRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+    }
+
+    private void loadMoviesFromDatabase() {
+        loading1.setVisibility(View.VISIBLE);
+        loading2.setVisibility(View.VISIBLE);
+
+        executorService.execute(() -> {
+            try {
+                // Lấy tất cả phim từ database
+                List<Movie> movies = database.movieDao().getAllMovies();
+
+                if (movies != null && !movies.isEmpty()) {
+                    allLocalMovies.clear();
+                    allLocalMovies.addAll(movies);
+
+                    // Chia phim thành 2 nhóm
+                    divideMoviesIntoCategories(movies);
+
+                    runOnUiThread(() -> {
+                        setupNewMoviesAdapter();
+                        setupUpcomingMoviesAdapter();
+
+                        loading1.setVisibility(View.GONE);
+                        loading2.setVisibility(View.GONE);
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        loading1.setVisibility(View.GONE);
+                        loading2.setVisibility(View.GONE);
+                        Toast.makeText(MainActivity.this, "Không có phim nào trong database", Toast.LENGTH_SHORT).show();
+                    });
+                }
+
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error loading movies from database: " + e.getMessage());
+                runOnUiThread(() -> {
+                    loading1.setVisibility(View.GONE);
+                    loading2.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "Lỗi khi tải dữ liệu phim", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+
+    private void divideMoviesIntoCategories(List<Movie> movies) {
+        newMovies.clear();
+        upcomingMovies.clear();
+
+        // Chia đôi danh sách phim
+        int halfSize = movies.size() / 2;
+
+        for (int i = 0; i < movies.size(); i++) {
+            if (i < halfSize) {
+                newMovies.add(movies.get(i));
+            } else {
+                upcomingMovies.add(movies.get(i));
+            }
+        }
+    }
+
+    private void setupNewMoviesAdapter() {
+        adapterNewMovies = new HorizontalGridMovieAdapter(this, newMovies);
+        recyclerViewNewMovies.setAdapter(adapterNewMovies);
+    }
+
+    private void setupUpcomingMoviesAdapter() {
+        adapterUpComing = new HorizontalGridMovieAdapter(this, upcomingMovies);
+        recyclerViewUpComing.setAdapter(adapterUpComing);
     }
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-
             Intent intent = new Intent(MainActivity.this, HistoryActivity.class);
             startActivity(intent);
         });
 
         btnFavorites.setOnClickListener(v -> {
-
             Intent intent = new Intent(MainActivity.this, FavoriteActivity.class);
             startActivity(intent);
         });
 
         btnSearch.setOnClickListener(v -> {
-
             Intent intent = new Intent(MainActivity.this, ExploreActivity.class);
             startActivity(intent);
         });
 
         btnProfile.setOnClickListener(v -> {
-
             Intent intent = new Intent(MainActivity.this, ProfileActivity.class);
             startActivity(intent);
         });
 
         fabHome.setOnClickListener(v -> {
-            // Giữ nguyên cho FAB click
             bottomAppBar.setFabAlignmentMode(BottomAppBar.FAB_ALIGNMENT_MODE_CENTER);
-
             fabHome.postDelayed(() -> {
                 Intent intent = new Intent(this, MainActivity.class);
                 startActivity(intent);
@@ -156,14 +236,8 @@ public class MainActivity extends AppCompatActivity {
             }, 100);
         });
     }
-    // ✅ THÊM METHOD HELPER chuyển đổi dp sang px
-    private int dpToPx(int dp) {
-        float density = getResources().getDisplayMetrics().density;
-        return Math.round(dp * density);
-    }
 
     private void setupSearchListeners() {
-        // Enter key để search
         homeSearchEditText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
             if (actionId == EditorInfo.IME_ACTION_SEARCH ||
                     (keyEvent != null && keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
@@ -173,7 +247,6 @@ public class MainActivity extends AppCompatActivity {
             return false;
         });
 
-        // Hiển thị/ẩn icon X khi có text
         homeSearchEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
@@ -191,13 +264,11 @@ public class MainActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
-        // Xử lý click vào icon search và close
         homeSearchEditText.setOnTouchListener((v, event) -> {
             if (event.getAction() != MotionEvent.ACTION_UP) {
                 return false;
             }
 
-            // Click vào icon search (bên trái)
             Drawable drawableLeft = homeSearchEditText.getCompoundDrawables()[0];
             if (drawableLeft != null && event.getRawX() <= (homeSearchEditText.getLeft()
                     + drawableLeft.getBounds().width() + homeSearchEditText.getPaddingStart())) {
@@ -205,7 +276,6 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
 
-            // Click vào icon close (bên phải)
             Drawable drawableRight = homeSearchEditText.getCompoundDrawables()[2];
             if (drawableRight != null && event.getRawX() >= (homeSearchEditText.getRight()
                     - drawableRight.getBounds().width() - homeSearchEditText.getPaddingEnd())) {
@@ -220,20 +290,14 @@ public class MainActivity extends AppCompatActivity {
     private void showCloseIcon() {
         Drawable[] drawables = homeSearchEditText.getCompoundDrawables();
         homeSearchEditText.setCompoundDrawables(
-                drawables[0], // search icon
-                drawables[1],
-                closeIcon,    // close icon
-                drawables[3]
+                drawables[0], drawables[1], closeIcon, drawables[3]
         );
     }
 
     private void hideCloseIcon() {
         Drawable[] drawables = homeSearchEditText.getCompoundDrawables();
         homeSearchEditText.setCompoundDrawables(
-                drawables[0], // search icon
-                drawables[1],
-                null,         // no close icon
-                drawables[3]
+                drawables[0], drawables[1], null, drawables[3]
         );
     }
 
@@ -245,73 +309,55 @@ public class MainActivity extends AppCompatActivity {
             return;
         }
 
-        // Ẩn bàn phím
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(homeSearchEditText.getWindowToken(), 0);
 
-        // Hiển thị kết quả tìm kiếm
         showSearchResults();
         homeSearchProgressBar.setVisibility(View.VISIBLE);
 
-        // Tạo URL tìm kiếm
-        String searchUrl = "https://moviesapi.ir/api/v1/movies?q=" + query;
+        // Tìm kiếm trong database
+        executorService.execute(() -> {
+            try {
+                List<Movie> searchResults = database.movieDao().searchMovies("%" + query + "%");
 
-        RequestQueue searchQueue = Volley.newRequestQueue(this);
-        StringRequest searchRequest = new StringRequest(Request.Method.GET, searchUrl,
-                response -> {
-                    Gson gson = new Gson();
-                    try {
-                        ListFilm items = gson.fromJson(response, ListFilm.class);
+                runOnUiThread(() -> {
+                    if (searchResults != null && !searchResults.isEmpty()) {
+                        int resultCount = searchResults.size();
+                        homeResultsCountTxt.setText("🔍 Tìm thấy " + resultCount + " kết quả cho \"" + query + "\"");
 
-                        if (items != null && items.getData() != null) {
-                            int resultCount = items.getData().size();
-                            homeResultsCountTxt.setText("🔍 Tìm thấy " + resultCount + " kết quả cho \"" + query + "\"");
-
-                            adapterSearchResults = new FilmListAdapter(items);
-                            homeSearchRecyclerView.setAdapter(adapterSearchResults);
-                        } else {
-                            homeResultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
-                        }
-
-                        homeSearchProgressBar.setVisibility(View.GONE);
-                    } catch (Exception e) {
-                        Log.e("MainActivity", "Error parsing JSON: " + e.getMessage());
-                        homeSearchProgressBar.setVisibility(View.GONE);
-                        homeResultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
+                        // SỬ DỤNG ADAPTER MỚI CHO SEARCH RESULTS
+                        adapterSearchResults = new HorizontalGridMovieAdapter(MainActivity.this, searchResults);
+                        homeSearchRecyclerView.setAdapter(adapterSearchResults);
+                    } else {
+                        homeResultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
                     }
-                },
-                error -> {
-                    Log.e("MainActivity", "Error: " + error.toString());
+
                     homeSearchProgressBar.setVisibility(View.GONE);
-                    homeResultsCountTxt.setText("🌐 Không thể kết nối đến máy chủ");
                 });
 
-        searchQueue.add(searchRequest);
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error searching movies: " + e.getMessage());
+                runOnUiThread(() -> {
+                    homeSearchProgressBar.setVisibility(View.GONE);
+                    homeResultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
+                });
+            }
+        });
     }
 
     private void showSearchResults() {
-        // Ẩn nội dung chính
         homeMainContent.setVisibility(View.GONE);
-
-        // Hiển thị kết quả tìm kiếm
         homeSearchResultsContainer.setVisibility(View.VISIBLE);
     }
 
     private void clearSearch() {
         homeSearchEditText.setText("");
-
-        // Ẩn kết quả tìm kiếm
         homeSearchResultsContainer.setVisibility(View.GONE);
-
-        // Hiển thị lại nội dung chính
         homeMainContent.setVisibility(View.VISIBLE);
 
-        // Ẩn bàn phím và xóa focus
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(homeSearchEditText.getWindowToken(), 0);
         homeSearchEditText.clearFocus();
-
-        // Icon X sẽ tự động ẩn vì TextWatcher
     }
 
     private void highlightHomeTab() {
@@ -322,37 +368,14 @@ public class MainActivity extends AppCompatActivity {
         btnSearch.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
         btnProfile.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
 
-        // FAB Home được highlight bằng cách là trang hiện tại
         fabHome.setBackgroundTintList(ContextCompat.getColorStateList(this, R.color.selected_tab_color));
     }
 
-    private void sendRequest1() {
-        mRequestQueue = Volley.newRequestQueue(this);
-        loading1.setVisibility(android.view.View.VISIBLE);
-        mStringRequest = new StringRequest(Request.Method.GET, "https://moviesapi.ir/api/v1/movies?page=1", response -> {
-            Gson gson = new Gson();
-            loading1.setVisibility(android.view.View.GONE);
-            ListFilm items = gson.fromJson(response, ListFilm.class);
-            adapterNewMovies = new FilmListAdapter(items);
-            recyclerViewNewMovies.setAdapter(adapterNewMovies);
-        }, error -> {
-            loading1.setVisibility(android.view.View.GONE);
-        });
-        mRequestQueue.add(mStringRequest);
-    }
-
-    private void sendRequest2() {
-        mRequestQueue = Volley.newRequestQueue(this);
-        loading2.setVisibility(android.view.View.VISIBLE);
-        mStringRequest2 = new StringRequest(Request.Method.GET, "https://moviesapi.ir/api/v1/movies?page=3", response -> {
-            Gson gson = new Gson();
-            loading2.setVisibility(android.view.View.GONE);
-            ListFilm items = gson.fromJson(response, ListFilm.class);
-            adapterUpComing = new FilmListAdapter(items);
-            recyclerViewUpComing.setAdapter(adapterUpComing);
-        }, error -> {
-            loading2.setVisibility(android.view.View.GONE);
-        });
-        mRequestQueue.add(mStringRequest2);
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (executorService != null) {
+            executorService.shutdown();
+        }
     }
 }
