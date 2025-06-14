@@ -1,15 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
-    xmlns:tools="http://schemas.android.com/tools"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    app:cardCornerRadius="8dp"
+    app:cardCornerRadius="12dp"
     app:cardElevation="4dp"
-    android:clickable="true"
-    android:focusable="true"
     android:foreground="?android:attr/selectableItemBackground">
 
     <LinearLayout
@@ -18,169 +14,112 @@
         android:orientation="horizontal"
         android:padding="16dp">
 
-        <!-- Avatar and Status -->
-        <RelativeLayout
+        <CheckBox
+            android:id="@+id/selectCheckBox"
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content">
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_vertical"
+            android:buttonTint="@color/primary_color" />
 
-            <de.hdodenhof.circleimageview.CircleImageView
-                android:id="@+id/imageViewAvatar"
-                android:layout_width="60dp"
-                android:layout_height="60dp"
-                android:src="@drawable/ic_user_placeholder"
-                app:civ_border_width="2dp"
-                app:civ_border_color="@color/colorPrimary" />
-
-            <View
-                android:id="@+id/statusIndicator"
-                android:layout_width="16dp"
-                android:layout_height="16dp"
-                android:layout_alignEnd="@id/imageViewAvatar"
-                android:layout_alignBottom="@id/imageViewAvatar"
-                android:background="@drawable/circle_status_indicator"
-                android:layout_marginEnd="2dp"
-                android:layout_marginBottom="2dp" />
-
-        </RelativeLayout>
-
-        <!-- User Info -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
             android:layout_weight="1"
-            android:layout_marginStart="12dp"
-            android:layout_marginEnd="8dp"
-            android:orientation="vertical">
+            android:orientation="vertical"
+            android:layout_marginStart="12dp">
 
-            <!-- Username and Role -->
+            <TextView
+                android:id="@+id/usernameText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:textColor="@android:color/black"
+                android:text="Username" />
+
+            <TextView
+                android:id="@+id/emailText"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:textSize="14sp"
+                android:textColor="@android:color/darker_gray"
+                android:layout_marginTop="2dp"
+                android:text="email@example.com" />
+
             <LinearLayout
-                android:layout_width="match_parent"
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:orientation="horizontal"
-                android:gravity="center_vertical">
+                android:layout_marginTop="8dp">
 
                 <TextView
-                    android:id="@+id/textViewUsername"
-                    android:layout_width="0dp"
-                    android:layout_height="wrap_content"
-                    android:layout_weight="1"
-                    android:textStyle="bold"
-                    android:textSize="16sp"
-                    android:textColor="@color/text_primary"
-                    tools:text="admin123" />
-
-                <TextView
-                    android:id="@+id/textViewRole"
+                    android:id="@+id/roleText"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:background="@drawable/bg_role_badge"
-                    android:paddingStart="8dp"
-                    android:paddingEnd="8dp"
-                    android:paddingTop="2dp"
-                    android:paddingBottom="2dp"
-                    android:textSize="10sp"
-                    android:textStyle="bold"
+                    android:padding="6dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:textSize="12sp"
                     android:textColor="@android:color/white"
-                    tools:text="ADMIN" />
+                    android:textStyle="bold"
+                    android:text="USER" />
+
+                <TextView
+                    android:id="@+id/statusText"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:background="@drawable/bg_status_badge"
+                    android:padding="6dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:textSize="12sp"
+                    android:textColor="@android:color/white"
+                    android:textStyle="bold"
+                    android:text="ACTIVE" />
 
             </LinearLayout>
 
-            <!-- Email -->
-            <TextView
-                android:id="@+id/textViewEmail"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:drawableStart="@drawable/ic_email_small"
-                android:drawablePadding="4dp"
-                tools:text="admin@example.com" />
-
-            <!-- Full Name -->
-            <TextView
-                android:id="@+id/textViewFullName"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textSize="13sp"
-                android:textColor="@color/text_secondary"
-                android:drawableStart="@drawable/ic_person_small"
-                android:drawablePadding="4dp"
-                tools:text="Administrator" />
-
-            <!-- Status -->
-            <TextView
-                android:id="@+id/textViewStatus"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="4dp"
-                android:textSize="12sp"
-                android:textStyle="bold"
-                tools:text="Hoạt động" />
-
-            <!-- Registration Date -->
-            <TextView
-                android:id="@+id/textViewRegistrationDate"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginTop="2dp"
-                android:textSize="11sp"
-                android:textColor="@color/text_tertiary"
-                tools:text="Đăng ký: 2023-05-06" />
-
-            <!-- Last Login -->
-            <TextView
-                android:id="@+id/textViewLastLogin"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:textSize="11sp"
-                android:textColor="@color/text_tertiary"
-                tools:text="Đăng nhập cuối: 2023-05-07" />
-
         </LinearLayout>
 
-        <!-- Action Buttons -->
         <LinearLayout
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:orientation="vertical"
-            android:gravity="center">
+            android:orientation="horizontal"
+            android:layout_gravity="center_vertical">
 
             <ImageButton
-                android:id="@+id/buttonEdit"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginBottom="4dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Chỉnh sửa"
-                android:scaleType="centerInside"
+                android:id="@+id/editButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:background="@drawable/bg_circle_blue"
                 android:src="@drawable/ic_edit"
-                app:tint="@color/colorPrimary" />
+                android:contentDescription="Chỉnh sửa"
+                app:tint="@android:color/white" />
 
             <ImageButton
-                android:id="@+id/buttonToggleStatus"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:layout_marginBottom="4dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
+                android:id="@+id/toggleStatusButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_circle_orange"
+                android:src="@drawable/ic_unlock"
                 android:contentDescription="Khóa/Mở khóa"
-                android:scaleType="centerInside"
-                android:src="@drawable/ic_lock"
-                app:tint="@color/orange" />
+                app:tint="@android:color/white" />
 
             <ImageButton
-                android:id="@+id/buttonDelete"
-                android:layout_width="36dp"
-                android:layout_height="36dp"
-                android:background="?android:attr/selectableItemBackgroundBorderless"
-                android:contentDescription="Xóa"
-                android:scaleType="centerInside"
+                android:id="@+id/deleteButton"
+                android:layout_width="40dp"
+                android:layout_height="40dp"
+                android:layout_marginStart="8dp"
+                android:background="@drawable/bg_circle_red"
                 android:src="@drawable/ic_delete"
-                app:tint="@color/red" />
+                android:contentDescription="Xóa"
+                app:tint="@android:color/white" />
 
         </LinearLayout>
 
     </LinearLayout>
 
-</com.google.android.material.card.MaterialCardView>
+</androidx.cardview.widget.CardView>

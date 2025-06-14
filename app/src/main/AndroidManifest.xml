@@ -55,7 +55,9 @@
         <activity
             android:name=".Activity.ManageMoviesActivity"
             android:exported="false" />
-
+        <activity
+            android:name=".Activity.AddEditUserActivity"
+            android:exported="false" />
         <activity
             android:name=".Activity.EditMovieActivity"
             android:exported="false" />

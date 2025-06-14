@@ -60,27 +60,44 @@ public class LoginActivity extends AppCompatActivity {
 
                 runOnUiThread(() -> {
                     if (user != null) {
-                        // Lưu thông tin đăng nhập
-                        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
-                        prefs.edit()
-                                .putInt("user_id", user.getUserId())
-                                .putString("username", user.getUsername())
-                                .putString("email", user.getEmail())
-                                .putString("role", user.getRole()) // ✅ THÊM ROLE
-                                .putBoolean("is_logged_in", true)
-                                .apply();
-
-                        Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
-
-                        // ✅ PHÂN QUYỀN CHUYỂN TRANG
-                        Intent intent;
-                        if (user.isAdmin()) {
-                            intent = new Intent(LoginActivity.this, AdminActivity.class);
-                        } else {
-                            intent = new Intent(LoginActivity.this, MainActivity.class);
+                        // ✅ KIỂM TRA TRẠNG THÁI TÀI KHOẢN
+                        if (user.getAccountStatus() == 2) {
+                            Toast.makeText(this, "Tài khoản của bạn đã bị khóa. Vui lòng liên hệ quản trị viên!", Toast.LENGTH_LONG).show();
+                            return;
                         }
-                        startActivity(intent);
-                        finish();
+
+                        if (user.getAccountStatus() == 0) {
+                            Toast.makeText(this, "Tài khoản của bạn chưa được kích hoạt. Vui lòng kiểm tra email!", Toast.LENGTH_LONG).show();
+                            return;
+                        }
+
+                        // Chỉ cho phép đăng nhập khi accountStatus = 1 (đã kích hoạt)
+                        if (user.getAccountStatus() == 1) {
+                            // Cập nhật ngày đăng nhập cuối
+                            updateLastLogin(user.getUserId());
+
+                            // Lưu thông tin đăng nhập
+                            SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+                            prefs.edit()
+                                    .putInt("user_id", user.getUserId())
+                                    .putString("username", user.getUsername())
+                                    .putString("email", user.getEmail())
+                                    .putString("role", user.getRole())
+                                    .putBoolean("is_logged_in", true)
+                                    .apply();
+
+                            Toast.makeText(this, "Đăng nhập thành công!", Toast.LENGTH_SHORT).show();
+
+                            // Phân quyền chuyển trang
+                            Intent intent;
+                            if (user.isAdmin()) {
+                                intent = new Intent(LoginActivity.this, AdminActivity.class);
+                            } else {
+                                intent = new Intent(LoginActivity.this, MainActivity.class);
+                            }
+                            startActivity(intent);
+                            finish();
+                        }
                     } else {
                         Toast.makeText(this, "Email hoặc mật khẩu không chính xác", Toast.LENGTH_SHORT).show();
                     }
@@ -88,6 +105,20 @@ public class LoginActivity extends AppCompatActivity {
 
             } catch (Exception e) {
                 runOnUiThread(() -> Toast.makeText(this, "Lỗi đăng nhập: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    // ✅ THÊM PHƯƠNG THỨC CẬP NHẬT NGÀY ĐĂNG NHẬP CUỐI
+    private void updateLastLogin(int userId) {
+        new Thread(() -> {
+            try {
+                String currentDate = new java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.getDefault())
+                        .format(new java.util.Date());
+                database.userDao().updateLastLogin(userId, currentDate);
+            } catch (Exception e) {
+                // Log lỗi nhưng không hiển thị cho user
+                e.printStackTrace();
             }
         }).start();
     }

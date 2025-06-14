@@ -4,196 +4,154 @@ import android.content.Context;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.CheckBox;
 import android.widget.ImageButton;
-import android.widget.ImageView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.bumptech.glide.Glide;
-import com.bumptech.glide.request.RequestOptions;
 import com.example.movies_app.Database.entity.User;
 import com.example.movies_app.R;
 import com.example.movies_app.service.UserManagementService;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 public class UserManagementAdapter extends RecyclerView.Adapter<UserManagementAdapter.UserViewHolder> {
-    
+
     private Context context;
-    private List<User> users;
+    private List<User> userList;
     private UserActionListener listener;
-    
+    private Set<Integer> selectedUserIds = new HashSet<>();
+
     public interface UserActionListener {
         void onEditUser(User user);
         void onDeleteUser(User user);
         void onToggleUserStatus(User user);
         void onViewUserDetails(User user);
+        void onUserSelected(User user, boolean isSelected);
     }
-    
-    public UserManagementAdapter(Context context, List<User> users, UserActionListener listener) {
+
+    public UserManagementAdapter(Context context, List<User> userList, UserActionListener listener) {
         this.context = context;
-        this.users = users;
+        this.userList = userList;
         this.listener = listener;
     }
-    
+
     @NonNull
     @Override
     public UserViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
         View view = LayoutInflater.from(context).inflate(R.layout.item_user_management, parent, false);
         return new UserViewHolder(view);
     }
-    
+
     @Override
     public void onBindViewHolder(@NonNull UserViewHolder holder, int position) {
-        User user = users.get(position);
-        holder.bind(user);
+        User user = userList.get(position);
+
+        // Bind basic user info
+        holder.usernameText.setText(user.getUsername());
+        holder.emailText.setText(user.getEmail());
+
+        // Set role with background color
+        holder.roleText.setText(user.getRole());
+        if ("ADMIN".equals(user.getRole())) {
+            holder.roleText.setBackgroundColor(ContextCompat.getColor(context, R.color.purple));
+        } else {
+            holder.roleText.setBackgroundColor(ContextCompat.getColor(context, R.color.blue));
+        }
+
+        // Set status with background color
+        String statusText = UserManagementService.getStatusName(user.getAccountStatus());
+        holder.statusText.setText(statusText);
+
+        switch (user.getAccountStatus()) {
+            case UserManagementService.STATUS_ACTIVE:
+                holder.statusText.setBackgroundColor(ContextCompat.getColor(context, R.color.green));
+                break;
+            case UserManagementService.STATUS_BLOCKED:
+                holder.statusText.setBackgroundColor(ContextCompat.getColor(context, R.color.red));
+                break;
+            default:
+                holder.statusText.setBackgroundColor(ContextCompat.getColor(context, R.color.orange));
+                break;
+        }
+
+        // Set checkbox state
+        holder.selectCheckBox.setOnCheckedChangeListener(null); // Remove listener temporarily
+        holder.selectCheckBox.setChecked(selectedUserIds.contains(user.getUserId()));
+        holder.selectCheckBox.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            if (isChecked) {
+                selectedUserIds.add(user.getUserId());
+            } else {
+                selectedUserIds.remove(user.getUserId());
+            }
+            if (listener != null) {
+                listener.onUserSelected(user, isChecked);
+            }
+        });
+
+        // Set toggle status button icon
+        if (user.getAccountStatus() == UserManagementService.STATUS_BLOCKED) {
+            holder.toggleStatusButton.setImageResource(R.drawable.ic_lock);
+            holder.toggleStatusButton.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.orange));
+        } else {
+            holder.toggleStatusButton.setImageResource(R.drawable.ic_unlock);
+            holder.toggleStatusButton.setBackgroundTintList(ContextCompat.getColorStateList(context, R.color.green));
+        }
+
+        // Set click listeners
+        holder.editButton.setOnClickListener(v -> {
+            if (listener != null) listener.onEditUser(user);
+        });
+
+        holder.deleteButton.setOnClickListener(v -> {
+            if (listener != null) listener.onDeleteUser(user);
+        });
+
+        holder.toggleStatusButton.setOnClickListener(v -> {
+            if (listener != null) listener.onToggleUserStatus(user);
+        });
+
+        holder.itemView.setOnClickListener(v -> {
+            if (listener != null) listener.onViewUserDetails(user);
+        });
+
+        // Long click to toggle selection
+        holder.itemView.setOnLongClickListener(v -> {
+            holder.selectCheckBox.setChecked(!holder.selectCheckBox.isChecked());
+            return true;
+        });
     }
-    
+
     @Override
     public int getItemCount() {
-        return users.size();
+        return userList.size();
     }
-    
-    class UserViewHolder extends RecyclerView.ViewHolder {
-        
-        ImageView imageViewAvatar;
-        TextView textViewUsername;
-        TextView textViewEmail;
-        TextView textViewFullName;
-        TextView textViewRole;
-        TextView textViewStatus;
-        TextView textViewRegistrationDate;
-        TextView textViewLastLogin;
-        ImageButton buttonEdit;
-        ImageButton buttonDelete;
-        ImageButton buttonToggleStatus;
-        View statusIndicator;
-        
+
+    public void clearSelection() {
+        selectedUserIds.clear();
+        notifyDataSetChanged();
+    }
+
+    public static class UserViewHolder extends RecyclerView.ViewHolder {
+        TextView usernameText, emailText, roleText, statusText;
+        CheckBox selectCheckBox;
+        ImageButton editButton, deleteButton, toggleStatusButton;
+
         public UserViewHolder(@NonNull View itemView) {
             super(itemView);
-            
-            imageViewAvatar = itemView.findViewById(R.id.imageViewAvatar);
-            textViewUsername = itemView.findViewById(R.id.textViewUsername);
-            textViewEmail = itemView.findViewById(R.id.textViewEmail);
-            textViewFullName = itemView.findViewById(R.id.textViewFullName);
-            textViewRole = itemView.findViewById(R.id.textViewRole);
-            textViewStatus = itemView.findViewById(R.id.textViewStatus);
-            textViewRegistrationDate = itemView.findViewById(R.id.textViewRegistrationDate);
-            textViewLastLogin = itemView.findViewById(R.id.textViewLastLogin);
-            buttonEdit = itemView.findViewById(R.id.buttonEdit);
-            buttonDelete = itemView.findViewById(R.id.buttonDelete);
-            buttonToggleStatus = itemView.findViewById(R.id.buttonToggleStatus);
-            statusIndicator = itemView.findViewById(R.id.statusIndicator);
-            
-            // Click listeners
-            itemView.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onViewUserDetails(users.get(getAdapterPosition()));
-                }
-            });
-            
-            buttonEdit.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onEditUser(users.get(getAdapterPosition()));
-                }
-            });
-            
-            buttonDelete.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onDeleteUser(users.get(getAdapterPosition()));
-                }
-            });
-            
-            buttonToggleStatus.setOnClickListener(v -> {
-                if (listener != null) {
-                    listener.onToggleUserStatus(users.get(getAdapterPosition()));
-                }
-            });
-        }
-        
-        public void bind(User user) {
-            // Set basic info
-            textViewUsername.setText(user.getUsername());
-            textViewEmail.setText(user.getEmail());
-            textViewFullName.setText(user.getFullName() != null ? user.getFullName() : "Chưa cập nhật");
-            textViewRole.setText(user.getRole());
-            textViewRegistrationDate.setText("Đăng ký: " + user.getRegistrationDate());
-            
-            // Set last login
-            String lastLogin = user.getLastLoginDate();
-            textViewLastLogin.setText("Đăng nhập cuối: " + (lastLogin != null ? lastLogin : "Chưa đăng nhập"));
-            
-            // Set status
-            setupStatus(user);
-            
-            // Set avatar
-            setupAvatar(user);
-            
-            // Setup action buttons
-            setupActionButtons(user);
-        }
-        
-        private void setupStatus(User user) {
-            int status = user.getAccountStatus();
-            String statusText = UserManagementService.getStatusName(status);
-            textViewStatus.setText(statusText);
-            
-            // Set status color
-            int colorRes;
-            switch (status) {
-                case UserManagementService.STATUS_ACTIVE:
-                    colorRes = R.color.status_active;
-                    break;
-                case UserManagementService.STATUS_BLOCKED:
-                    colorRes = R.color.status_blocked;
-                    break;
-                case UserManagementService.STATUS_INACTIVE:
-                    colorRes = R.color.status_inactive;
-                    break;
-                default:
-                    colorRes = R.color.status_inactive;
-                    break;
-            }
-            
-            int color = ContextCompat.getColor(context, colorRes);
-            textViewStatus.setTextColor(color);
-            statusIndicator.setBackgroundColor(color);
-        }
-        
-        private void setupAvatar(User user) {
-            String avatarUrl = user.getAvatarUrl();
-            
-            RequestOptions options = new RequestOptions()
-                    .placeholder(R.drawable.ic_user_placeholder)
-                    .error(R.drawable.ic_user_placeholder)
-                    .circleCrop();
-            
-            if (avatarUrl != null && !avatarUrl.isEmpty()) {
-                Glide.with(context)
-                        .load(avatarUrl)
-                        .apply(options)
-                        .into(imageViewAvatar);
-            } else {
-                // Tạo avatar mặc định với chữ cái đầu
-                imageViewAvatar.setImageResource(R.drawable.ic_user_placeholder);
-            }
-        }
-        
-        private void setupActionButtons(User user) {
-            // Toggle status button
-            if (user.getAccountStatus() == UserManagementService.STATUS_BLOCKED) {
-                buttonToggleStatus.setImageResource(R.drawable.ic_unlock);
-                buttonToggleStatus.setContentDescription("Mở khóa");
-            } else {
-                buttonToggleStatus.setImageResource(R.drawable.ic_lock);
-                buttonToggleStatus.setContentDescription("Khóa");
-            }
-            
-            // Disable actions for current user (nếu cần)
-            // Có thể thêm logic để ẩn nút delete/block cho chính user đang đăng nhập
+            usernameText = itemView.findViewById(R.id.usernameText);
+            emailText = itemView.findViewById(R.id.emailText);
+            roleText = itemView.findViewById(R.id.roleText);
+            statusText = itemView.findViewById(R.id.statusText);
+            selectCheckBox = itemView.findViewById(R.id.selectCheckBox);
+            editButton = itemView.findViewById(R.id.editButton);
+            deleteButton = itemView.findViewById(R.id.deleteButton);
+            toggleStatusButton = itemView.findViewById(R.id.toggleStatusButton);
         }
     }
 }

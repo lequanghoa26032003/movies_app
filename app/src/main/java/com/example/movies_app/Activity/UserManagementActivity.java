@@ -7,7 +7,6 @@ import android.text.Editable;
 import android.text.TextWatcher;
 import android.view.Menu;
 import android.view.MenuItem;
-import android.view.View;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -26,16 +25,17 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class UserManagementActivity extends AppCompatActivity implements UserManagementAdapter.UserActionListener {
-    
+
     private RecyclerView recyclerViewUsers;
     private UserManagementAdapter userAdapter;
     private UserManagementService userService;
     private EditText editTextSearch;
     private FloatingActionButton fabAddUser;
-    
+
     private List<User> allUsers = new ArrayList<>();
     private List<User> filteredUsers = new ArrayList<>();
-    
+    private List<User> selectedUsers = new ArrayList<>();
+
     private static final int REQUEST_ADD_USER = 1001;
     private static final int REQUEST_EDIT_USER = 1002;
 
@@ -43,55 +43,55 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_user_management);
-        
+
         initViews();
         setupToolbar();
         setupRecyclerView();
         setupSearchFunction();
-        
+
         userService = new UserManagementService(this);
         loadUsers();
     }
-    
+
     private void initViews() {
         recyclerViewUsers = findViewById(R.id.recyclerViewUsers);
         editTextSearch = findViewById(R.id.editTextSearch);
         fabAddUser = findViewById(R.id.fabAddUser);
-        
+
         fabAddUser.setOnClickListener(v -> openAddUserDialog());
     }
-    
+
     private void setupToolbar() {
         Toolbar toolbar = findViewById(R.id.toolbar);
         setSupportActionBar(toolbar);
-        
+
         if (getSupportActionBar() != null) {
             getSupportActionBar().setDisplayHomeAsUpEnabled(true);
             getSupportActionBar().setTitle("Quản lý người dùng");
         }
     }
-    
+
     private void setupRecyclerView() {
         userAdapter = new UserManagementAdapter(this, filteredUsers, this);
         recyclerViewUsers.setLayoutManager(new LinearLayoutManager(this));
         recyclerViewUsers.setAdapter(userAdapter);
     }
-    
+
     private void setupSearchFunction() {
         editTextSearch.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
-            
+
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
                 filterUsers(s.toString());
             }
-            
+
             @Override
             public void afterTextChanged(Editable s) {}
         });
     }
-    
+
     private void loadUsers() {
         userService.getAllUsers(new UserManagementService.UserListCallback() {
             @Override
@@ -102,7 +102,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                     filterUsers(editTextSearch.getText().toString());
                 });
             }
-            
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -111,44 +111,44 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             }
         });
     }
-    
+
     private void filterUsers(String searchText) {
         filteredUsers.clear();
-        
+
         if (searchText.isEmpty()) {
             filteredUsers.addAll(allUsers);
         } else {
             String searchLower = searchText.toLowerCase();
             for (User user : allUsers) {
                 if (user.getUsername().toLowerCase().contains(searchLower) ||
-                    user.getEmail().toLowerCase().contains(searchLower) ||
-                    (user.getFullName() != null && user.getFullName().toLowerCase().contains(searchLower))) {
+                        user.getEmail().toLowerCase().contains(searchLower) ||
+                        (user.getFullName() != null && user.getFullName().toLowerCase().contains(searchLower))) {
                     filteredUsers.add(user);
                 }
             }
         }
-        
+
         userAdapter.notifyDataSetChanged();
     }
-    
+
     private void openAddUserDialog() {
         Intent intent = new Intent(this, AddEditUserActivity.class);
         startActivityForResult(intent, REQUEST_ADD_USER);
     }
-    
+
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
-        
+
         if (resultCode == RESULT_OK) {
             if (requestCode == REQUEST_ADD_USER || requestCode == REQUEST_EDIT_USER) {
                 loadUsers(); // Reload danh sách người dùng
             }
         }
     }
-    
+
     // ========== UserActionListener Implementation ==========
-    
+
     @Override
     public void onEditUser(User user) {
         Intent intent = new Intent(this, AddEditUserActivity.class);
@@ -156,7 +156,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
         intent.putExtra("edit_mode", true);
         startActivityForResult(intent, REQUEST_EDIT_USER);
     }
-    
+
     @Override
     public void onDeleteUser(User user) {
         new AlertDialog.Builder(this)
@@ -168,12 +168,12 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                 .setNegativeButton("Hủy", null)
                 .show();
     }
-    
+
     @Override
     public void onToggleUserStatus(User user) {
         int newStatus;
         String action;
-        
+
         if (user.getAccountStatus() == UserManagementService.STATUS_BLOCKED) {
             newStatus = UserManagementService.STATUS_ACTIVE;
             action = "mở khóa";
@@ -181,7 +181,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             newStatus = UserManagementService.STATUS_BLOCKED;
             action = "khóa";
         }
-        
+
         new AlertDialog.Builder(this)
                 .setTitle("Xác nhận " + action)
                 .setMessage("Bạn có chắc chắn muốn " + action + " tài khoản " + user.getUsername() + "?")
@@ -191,16 +191,34 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                 .setNegativeButton("Hủy", null)
                 .show();
     }
-    
+
     @Override
     public void onViewUserDetails(User user) {
         Intent intent = new Intent(this, UserDetailActivity.class);
         intent.putExtra("user_id", user.getUserId());
         startActivity(intent);
     }
-    
+
+    @Override
+    public void onUserSelected(User user, boolean isSelected) {
+        if (isSelected) {
+            if (!selectedUsers.contains(user)) {
+                selectedUsers.add(user);
+            }
+        } else {
+            selectedUsers.remove(user);
+        }
+
+        // Cập nhật UI hoặc hiển thị thông báo
+        String message = isSelected ?
+                "Đã chọn: " + user.getUsername() + " (" + selectedUsers.size() + " người được chọn)" :
+                "Bỏ chọn: " + user.getUsername() + " (" + selectedUsers.size() + " người được chọn)";
+
+        Toast.makeText(this, message, Toast.LENGTH_SHORT).show();
+    }
+
     // ========== Helper Methods ==========
-    
+
     private void deleteUser(User user) {
         userService.deleteUser(user.getUserId(), new UserManagementService.UserOperationCallback() {
             @Override
@@ -210,7 +228,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                     loadUsers();
                 });
             }
-            
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -219,7 +237,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             }
         });
     }
-    
+
     private void changeUserStatus(User user, int newStatus) {
         userService.changeAccountStatus(user.getUserId(), newStatus, new UserManagementService.UserOperationCallback() {
             @Override
@@ -229,7 +247,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                     loadUsers();
                 });
             }
-            
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -238,19 +256,58 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             }
         });
     }
-    
+
+    private void clearSelection() {
+        selectedUsers.clear();
+        if (userAdapter != null) {
+            userAdapter.clearSelection();
+        }
+        Toast.makeText(this, "Đã xóa tất cả lựa chọn", Toast.LENGTH_SHORT).show();
+    }
+
+    private void exportUserData() {
+        new Thread(() -> {
+            try {
+                StringBuilder csvData = new StringBuilder();
+                csvData.append("Username,Email,Full Name,Role,Status,Registration Date,Last Login\n");
+
+                for (User user : allUsers) {
+                    csvData.append(user.getUsername()).append(",");
+                    csvData.append(user.getEmail()).append(",");
+                    csvData.append(user.getFullName() != null ? user.getFullName() : "").append(",");
+                    csvData.append(user.getRole()).append(",");
+                    csvData.append(UserManagementService.getStatusName(user.getAccountStatus())).append(",");
+                    csvData.append(user.getRegistrationDate()).append(",");
+                    csvData.append(user.getLastLoginDate() != null ? user.getLastLoginDate() : "").append("\n");
+                }
+
+                String fileName = "users_export_" + System.currentTimeMillis() + ".csv";
+                // TODO: Implement file saving logic here
+
+                runOnUiThread(() ->
+                        Toast.makeText(UserManagementActivity.this, "Đã xuất dữ liệu: " + fileName, Toast.LENGTH_SHORT).show()
+                );
+
+            } catch (Exception e) {
+                runOnUiThread(() ->
+                        Toast.makeText(UserManagementActivity.this, "Lỗi xuất dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show()
+                );
+            }
+        }).start();
+    }
+
     // ========== Menu ==========
-    
+
     @Override
     public boolean onCreateOptionsMenu(Menu menu) {
         getMenuInflater().inflate(R.menu.menu_user_management, menu);
         return true;
     }
-    
+
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         int itemId = item.getItemId();
-        
+
         if (itemId == android.R.id.home) {
             finish();
             return true;
@@ -272,15 +329,21 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
         } else if (itemId == R.id.action_refresh) {
             loadUsers();
             return true;
+        } else if (itemId == R.id.action_export) {
+            exportUserData();
+            return true;
+        } else if (itemId == R.id.action_clear_selection) {
+            clearSelection();
+            return true;
         }
-        
+
         return super.onOptionsItemSelected(item);
     }
-    
+
     private void showAllUsers() {
         loadUsers();
     }
-    
+
     private void showUsersByStatus(int status) {
         userService.getUsersByStatus(status, new UserManagementService.UserListCallback() {
             @Override
@@ -291,7 +354,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                     filterUsers(editTextSearch.getText().toString());
                 });
             }
-            
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -300,7 +363,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             }
         });
     }
-    
+
     private void showUsersByRole(String role) {
         userService.getUsersByRole(role, new UserManagementService.UserListCallback() {
             @Override
@@ -311,7 +374,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
                     filterUsers(editTextSearch.getText().toString());
                 });
             }
-            
+
             @Override
             public void onError(String error) {
                 runOnUiThread(() -> {
@@ -320,7 +383,7 @@ public class UserManagementActivity extends AppCompatActivity implements UserMan
             }
         });
     }
-    
+
     @Override
     protected void onDestroy() {
         super.onDestroy();

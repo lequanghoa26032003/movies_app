@@ -83,7 +83,7 @@ public class AddEditUserActivity extends AppCompatActivity {
         spinnerRole.setAdapter(roleAdapter);
         
         // Status spinner
-        String[] statuses = {"Hoạt động", "Chưa kích hoạt", "Bị khóa"};
+        String[] statuses = {"Chưa kích hoạt","Hoạt động", "Bị khóa"};
         ArrayAdapter<String> statusAdapter = new ArrayAdapter<>(this, 
             android.R.layout.simple_spinner_item, statuses);
         statusAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);

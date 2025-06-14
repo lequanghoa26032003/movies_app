@@ -5,37 +5,44 @@
     <item
         android:id="@+id/action_filter_all"
         android:title="Tất cả"
-        android:icon="@drawable/ic_people"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/action_filter_active"
         android:title="Đang hoạt động"
-        android:icon="@drawable/ic_check_circle"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/action_filter_blocked"
         android:title="Bị khóa"
-        android:icon="@drawable/ic_lock"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/action_filter_admins"
         android:title="Quản trị viên"
-        android:icon="@drawable/ic_admin"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/action_filter_users"
         android:title="Người dùng"
-        android:icon="@drawable/ic_user"
         app:showAsAction="never" />
 
     <item
         android:id="@+id/action_refresh"
         android:title="Làm mới"
-        android:icon="@drawable/ic_refresh"
+        android:icon="@android:drawable/ic_menu_rotate"
         app:showAsAction="ifRoom" />
+
+    <item
+        android:id="@+id/action_export"
+        android:title="Xuất dữ liệu"
+        android:icon="@android:drawable/ic_menu_save"
+        app:showAsAction="never" />
+
+    <item
+        android:id="@+id/action_clear_selection"
+        android:title="Xóa lựa chọn"
+        android:icon="@android:drawable/ic_menu_close_clear_cancel"
+        app:showAsAction="never" />
 
 </menu>
