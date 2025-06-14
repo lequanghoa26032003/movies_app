@@ -1,7 +1,9 @@
 package com.example.movies_app.Database.entity;
 
 import androidx.room.Entity;
+import androidx.room.Ignore;
 import androidx.room.PrimaryKey;
+
 import java.io.Serializable;
 
 @Entity(tableName = "movies")
@@ -20,6 +22,7 @@ public class Movie implements Serializable {
     private int isDownloaded;
 
     // Constructor
+    @Ignore
     public Movie(int id, String title, String poster, String year, String country,
                  String imdbRating, String genres, String images, String lastUpdated, int isDownloaded) {
         this.id = id;

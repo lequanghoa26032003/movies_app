@@ -2,8 +2,10 @@ package com.example.movies_app.Database.entity;
 
 import androidx.room.Entity;
 import androidx.room.ForeignKey;
+import androidx.room.Ignore;
 import androidx.room.Index;
 import androidx.room.PrimaryKey;
+
 import java.io.Serializable;
 
 @Entity(
@@ -34,7 +36,7 @@ public class MovieDetail implements Serializable {
     private String subtitleUrl;
     private String lastUpdated;
 
-    // Constructor đầy đủ
+    @Ignore
     public MovieDetail(int movieId, String released, String runtime, String director,
                        String writer, String actors, String plot, String awards,
                        String metascore, String imdbVotes, String type,
