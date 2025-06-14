@@ -222,14 +222,17 @@ public interface UserDao {
             "ORDER BY COUNT(wh.userId) DESC LIMIT 1")
     String getMostActiveUserWithCount();
 
-    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-30 days')")
-    int getNewUsersLastMonth();
-
-    // SỬA: Tính người dùng mới trong khoảng thời gian
-    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-60 days') AND registrationDate < date('now', '-30 days')")
-    int getNewUsersPreviousMonth();
-
-    // Thêm phương thức tính xu hướng đăng ký
+    /**
+     * Lấy số người dùng mới tháng này
+     * (Phương thức này đã có)
+     */
     @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', 'start of month')")
     int getNewUsersThisMonth();
+
+    /**
+     * Lấy số người dùng mới tháng trước
+     * (Phương thức này đã có)
+     */
+    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-60 days') AND registrationDate < date('now', '-30 days')")
+    int getNewUsersPreviousMonth();
 }

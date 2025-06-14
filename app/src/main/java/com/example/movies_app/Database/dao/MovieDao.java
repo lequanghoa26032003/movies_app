@@ -17,7 +17,7 @@ import java.util.List;
 
 @Dao
 public interface MovieDao {
-    // Các phương thức để chèn dữ liệu
+    // Các phương thức cũ...
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertMovie(Movie movie);
 
@@ -33,7 +33,7 @@ public interface MovieDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertSearchHistory(SearchHistory searchHistory);
 
-    // Các phương thức SELECT - lấy dữ liệu (Sửa tên bảng)
+    // Các phương thức SELECT cũ...
     @Query("SELECT * FROM movies")
     List<Movie> getAllMovies();
 
@@ -61,7 +61,7 @@ public interface MovieDao {
     @Query("SELECT * FROM search_history WHERE userId = :userId ORDER BY searchDate DESC LIMIT 10")
     List<SearchHistory> getRecentSearches(int userId);
 
-    // Các phương thức UPDATE - cập nhật dữ liệu
+    // Các phương thức UPDATE cũ...
     @Update
     void updateMovie(Movie movie);
 
@@ -74,7 +74,7 @@ public interface MovieDao {
     @Update
     void updateWatchHistory(WatchHistory watchHistory);
 
-    // Các phương thức DELETE - xóa dữ liệu
+    // Các phương thức DELETE cũ...
     @Delete
     void deleteMovie(Movie movie);
 
@@ -90,7 +90,6 @@ public interface MovieDao {
     @Delete
     void deleteSearchHistory(SearchHistory searchHistory);
 
-    // Các phương thức DELETE với ID (Sửa tên bảng)
     @Query("DELETE FROM movies WHERE id = :movieId")
     void deleteMovieById(int movieId);
 
@@ -103,14 +102,14 @@ public interface MovieDao {
     @Query("DELETE FROM watch_history WHERE movieId = :movieId AND userId = :userId")
     void deleteWatchHistoryByIds(int movieId, int userId);
 
-    // Kiểm tra sự tồn tại (Sửa tên bảng)
+    // Kiểm tra sự tồn tại
     @Query("SELECT COUNT(*) FROM movies WHERE id = :movieId")
     int checkMovieExists(int movieId);
 
     @Query("SELECT COUNT(*) FROM favorite_movies WHERE movieId = :movieId AND userId = :userId")
     int checkFavoriteExists(int movieId, int userId);
 
-    // Thống kê (Sửa tên bảng)
+    // ========== THỐNG KÊ CŨ (giữ nguyên để tương thích) ==========
     @Query("SELECT COUNT(*) FROM movies")
     int getTotalMoviesCount();
 
@@ -120,7 +119,6 @@ public interface MovieDao {
     @Query("SELECT COUNT(*) FROM watch_history WHERE userId = :userId")
     int getUserWatchHistoryCount(int userId);
 
-    // ========== THỐNG KÊ NÂNG CAO ==========
     @Query("SELECT COUNT(*) FROM watch_history")
     int getTotalViewsCount();
 
@@ -137,11 +135,73 @@ public interface MovieDao {
             "WHERE watchDate >= date('now', '-30 days')")
     int getActiveViewersLastMonth();
 
-    // SỬA: Sử dụng lastUpdated thay vì createdDate
     @Query("SELECT COUNT(*) FROM movies WHERE lastUpdated >= date('now', '-30 days')")
     int getMoviesAddedLastMonth();
 
-    // Thêm phương thức lấy trung bình rating
     @Query("SELECT AVG(CAST(imdbRating as REAL)) FROM movies WHERE imdbRating IS NOT NULL AND imdbRating != ''")
     double getAverageMovieRating();
+
+    // ========== THỐNG KÊ MỚI SỬ DỤNG TRƯỜNG viewCount ==========
+
+    // Cập nhật view count cho một phim
+    @Query("UPDATE movies SET viewCount = viewCount + 1 WHERE id = :movieId")
+    void incrementMovieViewCount(int movieId);
+
+    // Lấy tổng số lượt xem từ trường viewCount
+    @Query("SELECT SUM(viewCount) FROM movies")
+    int getTotalViewsFromViewCount();
+
+    // Lấy phim có lượt xem cao nhất
+    @Query("SELECT title || ' (' || viewCount || ' lượt xem)' FROM movies " +
+            "WHERE viewCount = (SELECT MAX(viewCount) FROM movies) LIMIT 1")
+    String getMostViewedMovieFromViewCount();
+
+    // Lấy top phim có lượt xem cao nhất
+    @Query("SELECT * FROM movies ORDER BY viewCount DESC LIMIT :limit")
+    List<Movie> getTopViewedMovies(int limit);
+
+    // Lấy phim có lượt xem thấp nhất (> 0)
+    @Query("SELECT * FROM movies WHERE viewCount > 0 ORDER BY viewCount ASC LIMIT :limit")
+    List<Movie> getLeastViewedMovies(int limit);
+
+    // Lấy trung bình lượt xem
+    @Query("SELECT AVG(viewCount) FROM movies WHERE viewCount > 0")
+    double getAverageViewCount();
+
+    // Lấy tổng số phim đã được xem (viewCount > 0)
+    @Query("SELECT COUNT(*) FROM movies WHERE viewCount > 0")
+    int getViewedMoviesCount();
+
+    // Lấy tổng số phim chưa được xem (viewCount = 0)
+    @Query("SELECT COUNT(*) FROM movies WHERE viewCount = 0")
+    int getUnwatchedMoviesCount();
+
+    // Thống kê theo thể loại (genres)
+    @Query("SELECT genres, SUM(viewCount) as totalViews FROM movies " +
+            "WHERE viewCount > 0 GROUP BY genres ORDER BY totalViews DESC")
+    List<GenreViewCount> getViewCountByGenre();
+
+    // Thống kê theo năm
+    @Query("SELECT year, SUM(viewCount) as totalViews FROM movies " +
+            "WHERE viewCount > 0 GROUP BY year ORDER BY totalViews DESC")
+    List<YearViewCount> getViewCountByYear();
+
+    // Đặt lại view count cho một phim
+    @Query("UPDATE movies SET viewCount = :count WHERE id = :movieId")
+    void setMovieViewCount(int movieId, int count);
+
+    // Đặt lại tất cả view count về 0
+    @Query("UPDATE movies SET viewCount = 0")
+    void resetAllViewCounts();
+
+    // Class helper cho thống kê
+    class GenreViewCount {
+        public String genres;
+        public int totalViews;
+    }
+
+    class YearViewCount {
+        public String year;
+        public int totalViews;
+    }
 }

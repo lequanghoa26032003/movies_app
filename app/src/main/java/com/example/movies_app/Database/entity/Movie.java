@@ -20,11 +20,13 @@ public class Movie implements Serializable {
     private String images;
     private String lastUpdated;
     private int isDownloaded;
+    private int viewCount; // THÊM TRƯỜNG MỚI
 
-    // Constructor
+    // Constructor với viewCount
     @Ignore
     public Movie(int id, String title, String poster, String year, String country,
-                 String imdbRating, String genres, String images, String lastUpdated, int isDownloaded) {
+                 String imdbRating, String genres, String images, String lastUpdated,
+                 int isDownloaded, int viewCount) {
         this.id = id;
         this.title = title;
         this.poster = poster;
@@ -35,12 +37,20 @@ public class Movie implements Serializable {
         this.images = images;
         this.lastUpdated = lastUpdated;
         this.isDownloaded = isDownloaded;
+        this.viewCount = viewCount;
+    }
+
+    // Constructor cũ để tương thích (viewCount mặc định = 0)
+    @Ignore
+    public Movie(int id, String title, String poster, String year, String country,
+                 String imdbRating, String genres, String images, String lastUpdated, int isDownloaded) {
+        this(id, title, poster, year, country, imdbRating, genres, images, lastUpdated, isDownloaded, 0);
     }
 
     // Constructor mặc định (cần cho Room)
     public Movie() {}
 
-    // Getters and Setters
+    // Getters and Setters cũ
     public int getId() { return id; }
     public void setId(int id) { this.id = id; }
 
@@ -70,4 +80,13 @@ public class Movie implements Serializable {
 
     public int getIsDownloaded() { return isDownloaded; }
     public void setIsDownloaded(int isDownloaded) { this.isDownloaded = isDownloaded; }
+
+    // THÊM getter/setter cho viewCount
+    public int getViewCount() { return viewCount; }
+    public void setViewCount(int viewCount) { this.viewCount = viewCount; }
+
+    // Phương thức tiện ích để tăng view count
+    public void incrementViewCount() {
+        this.viewCount++;
+    }
 }
