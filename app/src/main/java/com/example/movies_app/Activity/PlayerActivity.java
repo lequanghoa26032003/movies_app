@@ -2,7 +2,6 @@ package com.example.movies_app.Activity;
 
 import android.net.Uri;
 import android.os.Bundle;
-import android.util.Log;
 import android.view.View;
 import android.widget.ImageView;
 import android.widget.ProgressBar;
@@ -10,12 +9,12 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
-
-import com.example.movies_app.R;
-import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.common.MediaItem;
 import androidx.media3.common.Player;
+import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
+
+import com.example.movies_app.R;
 
 public class PlayerActivity extends AppCompatActivity {
 
@@ -24,7 +23,7 @@ public class PlayerActivity extends AppCompatActivity {
     private ProgressBar progressBar;
     private ImageView backBtn;
     private TextView titleTxt;
-
+    private String youtubeKey;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -32,21 +31,27 @@ public class PlayerActivity extends AppCompatActivity {
 
         // Khởi tạo UI
         initView();
-
+        youtubeKey = getIntent().getStringExtra("youtubeKey");
+        String videoUrl = getIntent().getStringExtra("videoUrl");
         String title = getIntent().getStringExtra("title");
         if (title != null && !title.isEmpty() && titleTxt != null) {
             titleTxt.setText(title);
         }
 
-        String videoUrl = getIntent().getStringExtra("videoUrl");
-        if (videoUrl != null && !videoUrl.isEmpty()) {
+        if (youtubeKey != null && !youtubeKey.isEmpty()) {
+            // Chuyển đổi YouTube URL thành format phù hợp với ExoPlayer
+            String playableUrl = convertYouTubeUrl(youtubeKey);
+            playVideo(playableUrl);
+        } else if (videoUrl != null && !videoUrl.isEmpty()) {
             playVideo(videoUrl);
         } else {
-            // Hiển thị thông báo lỗi nếu không có URL
             Toast.makeText(this, "Không có URL video để phát", Toast.LENGTH_LONG).show();
         }
     }
-
+    private String convertYouTubeUrl(String youtubeKey) {
+        // Sử dụng YouTube embed URL cho ExoPlayer
+        return "https://www.youtube.com/embed/" + youtubeKey;
+    }
     private void initView() {
         playerView = findViewById(R.id.playerView);
         progressBar = findViewById(R.id.progressBar);

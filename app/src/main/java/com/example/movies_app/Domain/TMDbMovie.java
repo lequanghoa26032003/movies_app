@@ -182,4 +182,15 @@ public class TMDbMovie implements Serializable {
     public boolean hasCompleteInfo() {
         return (videoUrl != null && !videoUrl.isEmpty()) || (youtubeKey != null && !youtubeKey.isEmpty());
     }
+    public String getPlayableVideoUrl() {
+        if (youtubeKey != null && !youtubeKey.isEmpty()) {
+            return "https://www.youtube.com/embed/" + youtubeKey;
+        }
+        return videoUrl;
+    }
+
+    public boolean hasVideo() {
+        return (youtubeKey != null && !youtubeKey.isEmpty()) ||
+                (videoUrl != null && !videoUrl.isEmpty());
+    }
 }
