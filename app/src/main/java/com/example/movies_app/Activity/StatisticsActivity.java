@@ -12,6 +12,8 @@ import androidx.cardview.widget.CardView;
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.R;
 
+import java.util.Locale;
+
 public class StatisticsActivity extends AppCompatActivity {
     private ImageView backButton;
     private TextView totalUsersText, totalMoviesText, activeUsersText, totalViewsText;
@@ -63,26 +65,40 @@ public class StatisticsActivity extends AppCompatActivity {
     private void loadStatistics() {
         new Thread(() -> {
             try {
-                // Load basic statistics
+                // Load basic statistics - ĐÃ CÓ
                 int totalUsers = database.userDao().getTotalUsersCount();
                 int activeUsers = database.userDao().getActiveUsersCount();
 
-                // TODO: Add more statistics queries
-                // int totalMovies = database.movieDao().getTotalMoviesCount();
-                // int totalViews = database.viewDao().getTotalViewsCount();
+                // Load movie statistics - MỚI THÊM (ĐÃ SỬA)
+                int totalMovies = database.movieDao().getTotalMoviesCount();
+                int totalViews = database.movieDao().getTotalViewsCount();
+
+                // Load detailed statistics - MỚI THÊM
+                String mostViewedMovie = database.movieDao().getMostViewedMovieWithCount();
+                String mostActiveUser = database.userDao().getMostActiveUserWithCount();
+
+                // Calculate trends - MỚI THÊM (ĐÃ SỬA)
+                int newUsersThisMonth = database.userDao().getNewUsersThisMonth();
+                int newUsersPreviousMonth = database.userDao().getNewUsersPreviousMonth();
+                String trend = calculateTrend(newUsersThisMonth, newUsersPreviousMonth);
+
+                // Load average rating
+                double avgRating = database.movieDao().getAverageMovieRating();
 
                 runOnUiThread(() -> {
+                    // Cập nhật dữ liệu thực thay vì placeholder
                     totalUsersText.setText(String.valueOf(totalUsers));
                     activeUsersText.setText(String.valueOf(activeUsers));
+                    totalMoviesText.setText(String.valueOf(totalMovies)); // Thay "150"
+                    totalViewsText.setText(formatNumber(totalViews)); // Thay "12,345"
 
-                    // Placeholder data - replace with real data
-                    totalMoviesText.setText("150");
-                    totalViewsText.setText("12,345");
-                    mostViewedMovieText.setText("Avengers: Endgame (1,234 lượt xem)");
-                    mostActiveUserText.setText("user123 (45 phim đã xem)");
-                    registrationTrendText.setText("+15% so với tháng trước");
+                    // Cập nhật dữ liệu chi tiết
+                    mostViewedMovieText.setText(mostViewedMovie != null && !mostViewedMovie.isEmpty() ?
+                            mostViewedMovie : "Chưa có dữ liệu");
+                    mostActiveUserText.setText(mostActiveUser != null && !mostActiveUser.isEmpty() ?
+                            mostActiveUser : "Chưa có dữ liệu");
+                    registrationTrendText.setText(trend);
 
-                    // Set card colors based on data
                     updateCardColors();
                 });
 
@@ -94,6 +110,25 @@ public class StatisticsActivity extends AppCompatActivity {
         }).start();
     }
 
+    private String calculateTrend(int thisMonth, int previousMonth) {
+        if (previousMonth == 0) {
+            return thisMonth > 0 ? "+100% (tháng đầu tiên)" : "Chưa có dữ liệu";
+        }
+
+        double percentage = ((double)(thisMonth - previousMonth) / previousMonth) * 100;
+        String sign = percentage > 0 ? "+" : "";
+        return String.format(Locale.getDefault(), "%s%.1f%% so với tháng trước", sign, percentage);
+    }
+
+    private String formatNumber(int number) {
+        if (number >= 1000000) {
+            return String.format(Locale.getDefault(), "%.1fM", number / 1000000.0);
+        } else if (number >= 1000) {
+            return String.format(Locale.getDefault(), "%.1fK", number / 1000.0);
+        } else {
+            return String.valueOf(number);
+        }
+    }
     private void updateCardColors() {
         // Update card background colors based on data trends
         usersCard.setCardBackgroundColor(Color.parseColor("#4CAF50")); // Green for positive

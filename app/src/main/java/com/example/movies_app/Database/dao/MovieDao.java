@@ -119,4 +119,29 @@ public interface MovieDao {
 
     @Query("SELECT COUNT(*) FROM watch_history WHERE userId = :userId")
     int getUserWatchHistoryCount(int userId);
+
+    // ========== THỐNG KÊ NÂNG CAO ==========
+    @Query("SELECT COUNT(*) FROM watch_history")
+    int getTotalViewsCount();
+
+    @Query("SELECT m.title || ' (' || COUNT(wh.movieId) || ' lượt xem)' FROM movies m " +
+            "LEFT JOIN watch_history wh ON m.id = wh.movieId " +
+            "GROUP BY m.id, m.title " +
+            "ORDER BY COUNT(wh.movieId) DESC LIMIT 1")
+    String getMostViewedMovieWithCount();
+
+    @Query("SELECT COUNT(*) FROM favorite_movies")
+    int getTotalFavoritesCount();
+
+    @Query("SELECT COUNT(DISTINCT userId) FROM watch_history " +
+            "WHERE watchDate >= date('now', '-30 days')")
+    int getActiveViewersLastMonth();
+
+    // SỬA: Sử dụng lastUpdated thay vì createdDate
+    @Query("SELECT COUNT(*) FROM movies WHERE lastUpdated >= date('now', '-30 days')")
+    int getMoviesAddedLastMonth();
+
+    // Thêm phương thức lấy trung bình rating
+    @Query("SELECT AVG(CAST(imdbRating as REAL)) FROM movies WHERE imdbRating IS NOT NULL AND imdbRating != ''")
+    double getAverageMovieRating();
 }

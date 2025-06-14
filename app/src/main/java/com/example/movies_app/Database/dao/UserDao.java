@@ -214,4 +214,22 @@ public interface UserDao {
 
     @Query("SELECT COUNT(*) FROM user_preferences WHERE userId = :userId")
     int hasUserPreference(int userId);
+
+    // ========== THỐNG KÊ NGƯỜI DÙNG NÂNG CAO ==========
+    @Query("SELECT u.username || ' (' || COUNT(wh.userId) || ' phim đã xem)' FROM users u " +
+            "LEFT JOIN watch_history wh ON u.userId = wh.userId " +
+            "GROUP BY u.userId, u.username " +
+            "ORDER BY COUNT(wh.userId) DESC LIMIT 1")
+    String getMostActiveUserWithCount();
+
+    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-30 days')")
+    int getNewUsersLastMonth();
+
+    // SỬA: Tính người dùng mới trong khoảng thời gian
+    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-60 days') AND registrationDate < date('now', '-30 days')")
+    int getNewUsersPreviousMonth();
+
+    // Thêm phương thức tính xu hướng đăng ký
+    @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', 'start of month')")
+    int getNewUsersThisMonth();
 }
