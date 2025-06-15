@@ -204,4 +204,9 @@ public interface MovieDao {
         public String year;
         public int totalViews;
     }
+    @Query("SELECT DISTINCT genres FROM movies WHERE genres IS NOT NULL AND genres != ''")
+    List<String> getAllGenres();
+
+    @Query("SELECT genres FROM movies WHERE genres IS NOT NULL AND genres != '' GROUP BY genres")
+    List<String> getUniqueGenres();
 }

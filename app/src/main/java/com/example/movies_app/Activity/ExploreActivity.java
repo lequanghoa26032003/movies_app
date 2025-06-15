@@ -32,27 +32,29 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.android.volley.Request;
-import com.android.volley.RequestQueue;
-import com.android.volley.Response;
-import com.android.volley.VolleyError;
-import com.android.volley.toolbox.StringRequest;
-import com.android.volley.toolbox.Volley;
-import com.example.movies_app.Adapter.EmptyAdapter;
 import com.example.movies_app.Adapter.FilmListAdapter;
+import com.example.movies_app.Database.AppDatabase;
+import com.example.movies_app.Database.entity.Movie;
+import com.example.movies_app.Domain.Datum;
 import com.example.movies_app.Domain.ListFilm;
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.Helper.FilterManager;
+import com.example.movies_app.Helper.GenreHelper;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
-import com.google.gson.Gson;
 
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
+
 public class ExploreActivity extends AppCompatActivity {
+
+    // ✅ THÊM DATABASE VÀ ADAPTERS
+    private AppDatabase database;
+    private FilmListAdapter trendingAdapter, categoryAdapter;
 
     // Search & Filter Components
     private EditText searchEditText;
@@ -72,10 +74,14 @@ public class ExploreActivity extends AppCompatActivity {
     // Bottom Navigation Components
     private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_explore);
+
+        // ✅ KHỞI TẠO DATABASE
+        database = AppDatabase.getInstance(this);
 
         filterManager = new FilterManager(this);
         initViews();
@@ -83,7 +89,10 @@ public class ExploreActivity extends AppCompatActivity {
         highlightCurrentTab();
         setupSearchListeners();
         focusSearchBox();
-        loadTrendingMovies();
+
+        loadTrendingMoviesFromDB();
+        loadPopularCategoriesFromDB();
+
         setFabToExplorePosition();
 
         // Setup close icon
@@ -107,7 +116,6 @@ public class ExploreActivity extends AppCompatActivity {
 
         // Content sections
         bottomAppBar = findViewById(R.id.app_bar);
-
         trendingSection = findViewById(R.id.trendingSection);
         categorySection = findViewById(R.id.categorySection);
 
@@ -126,17 +134,289 @@ public class ExploreActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
         btnMain = findViewById(R.id.btn_center);
-        exploreRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
-        exploreRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
 
-        categoryRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        categoryRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
-
-        trendingRecyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
-        trendingRecyclerView.setAdapter(new EmptyAdapter()); // ✅ THÊM
-
+        // ✅ XÓA CÁC EmptyAdapter - sẽ được set trong load methods
     }
 
+    // ✅ LOAD TRENDING MOVIES TỪ DATABASE
+    private void loadTrendingMoviesFromDB() {
+        new Thread(() -> {
+            try {
+                // Lấy tất cả movies từ database
+                List<Movie> movies = database.movieDao().getAllMovies();
+
+                if (movies != null && !movies.isEmpty()) {
+                    // Convert sang ListFilm format
+                    ListFilm listFilm = convertMoviesToListFilm(movies);
+
+                    // Update UI trên main thread
+                    runOnUiThread(() -> {
+                        displayTrendingMovies(listFilm);
+                        Log.d("ExploreActivity", "Loaded " + movies.size() + " trending movies from DB");
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        Log.d("ExploreActivity", "No movies found in database");
+                        Toast.makeText(this, "Chưa có phim trong cơ sở dữ liệu", Toast.LENGTH_SHORT).show();
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error loading trending movies from DB: " + e.getMessage());
+                runOnUiThread(() -> {
+                    Toast.makeText(this, "Lỗi khi tải phim thịnh hành", Toast.LENGTH_SHORT).show();
+                });
+            }
+        }).start();
+    }
+
+    private void loadPopularCategoriesFromDB() {
+        new Thread(() -> {
+            try {
+                List<Movie> highRatedMovies = database.movieDao().getAllMovies();
+
+                if (highRatedMovies != null && !highRatedMovies.isEmpty()) {
+                    List<Movie> filteredMovies = filterHighRatedMovies(highRatedMovies);
+                    ListFilm listFilm = convertMoviesToListFilm(filteredMovies);
+
+                    runOnUiThread(() -> {
+                        displayCategories(listFilm);
+                        Log.d("ExploreActivity", "Loaded " + filteredMovies.size() + " popular movies from DB");
+                    });
+                } else {
+                    runOnUiThread(() -> {
+                        Log.d("ExploreActivity", "No popular movies found");
+                    });
+                }
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error loading popular categories from DB: " + e.getMessage());
+            }
+        }).start();
+    }
+    private List<Movie> filterHighRatedMovies(List<Movie> allMovies) {
+        List<Movie> popularMovies = new ArrayList<>();
+
+        for (Movie movie : allMovies) {
+            try {
+                if (movie.getImdbRating() != null &&
+                        !movie.getImdbRating().isEmpty() &&
+                        Double.parseDouble(movie.getImdbRating()) >= 7.0) {
+                    popularMovies.add(movie);
+                }
+            } catch (NumberFormatException e) {
+                // Skip movies with invalid rating
+            }
+        }
+
+        // Giới hạn số lượng hiển thị
+        if (popularMovies.size() > 10) {
+            return popularMovies.subList(0, 10);
+        }
+
+        return popularMovies;
+    }
+
+    // ✅ HIỂN THỊ TRENDING MOVIES
+    private void displayTrendingMovies(ListFilm items) {
+        if (items != null && items.getData() != null && !items.getData().isEmpty()) {
+            trendingAdapter = new FilmListAdapter(items);
+            trendingRecyclerView.setAdapter(trendingAdapter);
+            Log.d("ExploreActivity", "Trending adapter set with " + items.getData().size() + " items");
+        } else {
+            Log.d("ExploreActivity", "No trending data to display");
+        }
+    }
+
+    // ✅ HIỂN THỊ CATEGORIES
+    private void displayCategories(ListFilm items) {
+        if (items != null && items.getData() != null && !items.getData().isEmpty()) {
+            categoryAdapter = new FilmListAdapter(items);
+            categoryRecyclerView.setAdapter(categoryAdapter);
+            Log.d("ExploreActivity", "Category adapter set with " + items.getData().size() + " items");
+        } else {
+            Log.d("ExploreActivity", "No category data to display");
+        }
+    }
+
+    // ✅ CONVERT MOVIES TO LISTFILM FORMAT
+    private ListFilm convertMoviesToListFilm(List<Movie> movies) {
+        ListFilm listFilm = new ListFilm();
+        List<Datum> dataList = new ArrayList<>();
+
+        for (Movie movie : movies) {
+            Datum datum = new Datum();
+            datum.setId(movie.getId());
+            datum.setTitle(movie.getTitle());
+            datum.setPoster(movie.getPoster());
+            datum.setYear(movie.getYear());
+            datum.setCountry(movie.getCountry());
+            datum.setImdbRating(movie.getImdbRating());
+
+            // Convert genres string back to list
+            if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
+                List<String> genres = Arrays.asList(movie.getGenres().split(","));
+                datum.setGenres(genres);
+            }
+
+            // Convert images string back to list
+            if (movie.getImages() != null && !movie.getImages().isEmpty()) {
+                List<String> images = Arrays.asList(movie.getImages().split(","));
+                datum.setImages(images);
+            }
+
+            dataList.add(datum);
+        }
+
+        listFilm.setData(dataList);
+        return listFilm;
+    }
+
+    // ✅ CẬP NHẬT SEARCH TỪ DATABASE
+    private void performSearch() {
+        String query = searchEditText.getText().toString().trim();
+
+        if (query.isEmpty()) {
+            Toast.makeText(this, "Vui lòng nhập từ khóa tìm kiếm", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        // Ẩn bàn phím
+        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+
+        // Hiển thị kết quả tìm kiếm
+        showSearchResults();
+        searchProgressBar.setVisibility(View.VISIBLE);
+
+        // ✅ TÌM KIẾM TỪ DATABASE
+        new Thread(() -> {
+            try {
+                // Search trong database
+                List<Movie> searchResults = database.movieDao().searchMovies("%" + query + "%");
+
+                runOnUiThread(() -> {
+                    searchProgressBar.setVisibility(View.GONE);
+
+                    if (searchResults != null && !searchResults.isEmpty()) {
+                        ListFilm listFilm = convertMoviesToListFilm(searchResults);
+
+                        resultsCountTxt.setText("🔍 Tìm thấy " + searchResults.size() + " kết quả cho \"" + query + "\"");
+                        adapterSearchResults = new FilmListAdapter(listFilm);
+                        exploreRecyclerView.setAdapter(adapterSearchResults);
+                    } else {
+                        resultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
+                        // Set empty adapter
+                        exploreRecyclerView.setAdapter(new FilmListAdapter(new ListFilm()));
+                    }
+                });
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error searching movies: " + e.getMessage());
+                runOnUiThread(() -> {
+                    searchProgressBar.setVisibility(View.GONE);
+                    resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
+                });
+            }
+        }).start();
+    }
+
+    // ✅ CẬP NHẬT APPLY FILTERS TỪ DATABASE
+    private void applyFilters() {
+        // Hiển thị loading
+        searchProgressBar.setVisibility(View.VISIBLE);
+        showSearchResults();
+        resultsCountTxt.setText("🎛️ Đang áp dụng bộ lọc...");
+
+        new Thread(() -> {
+            try {
+                List<Movie> allMovies = database.movieDao().getAllMovies();
+                List<Movie> filteredMovies = new ArrayList<>();
+
+                Set<String> selectedGenres = filterManager.getSelectedGenres();
+                String sortBy = filterManager.getSortBy();
+
+                // ✅ CẬP NHẬT LOGIC LỌC THEO GENRES
+                for (Movie movie : allMovies) {
+                    if (selectedGenres.isEmpty()) {
+                        // Không có filter genres, lấy tất cả
+                        filteredMovies.add(movie);
+                    } else {
+                        // Kiểm tra xem movie có chứa genre được chọn không
+                        if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
+                            boolean hasMatchingGenre = false;
+
+                            // Split genres của movie
+                            String[] movieGenres = movie.getGenres().split(",");
+
+                            for (String movieGenre : movieGenres) {
+                                String cleanMovieGenre = movieGenre.trim();
+
+                                // Kiểm tra với selected genres
+                                for (String selectedGenre : selectedGenres) {
+                                    if (cleanMovieGenre.equalsIgnoreCase(selectedGenre)) {
+                                        hasMatchingGenre = true;
+                                        break;
+                                    }
+                                }
+
+                                if (hasMatchingGenre) break;
+                            }
+
+                            if (hasMatchingGenre) {
+                                filteredMovies.add(movie);
+                            }
+                        }
+                    }
+                }
+
+                // Sort theo criteria (giữ nguyên logic cũ)
+                if ("imdb_rating".equals(sortBy)) {
+                    filteredMovies.sort((m1, m2) -> {
+                        try {
+                            double rating1 = Double.parseDouble(m1.getImdbRating() != null ? m1.getImdbRating() : "0");
+                            double rating2 = Double.parseDouble(m2.getImdbRating() != null ? m2.getImdbRating() : "0");
+                            return Double.compare(rating2, rating1); // Descending
+                        } catch (NumberFormatException e) {
+                            return 0;
+                        }
+                    });
+                } else if ("year".equals(sortBy)) {
+                    filteredMovies.sort((m1, m2) -> {
+                        String year1 = m1.getYear() != null ? m1.getYear() : "0";
+                        String year2 = m2.getYear() != null ? m2.getYear() : "0";
+                        return year2.compareTo(year1); // Descending
+                    });
+                } else { // title
+                    filteredMovies.sort((m1, m2) -> {
+                        String title1 = m1.getTitle() != null ? m1.getTitle() : "";
+                        String title2 = m2.getTitle() != null ? m2.getTitle() : "";
+                        return title1.compareToIgnoreCase(title2);
+                    });
+                }
+
+                runOnUiThread(() -> {
+                    searchProgressBar.setVisibility(View.GONE);
+
+                    if (!filteredMovies.isEmpty()) {
+                        ListFilm listFilm = convertMoviesToListFilm(filteredMovies);
+                        resultsCountTxt.setText("🎯 Tìm thấy " + filteredMovies.size() + " kết quả phù hợp");
+                        adapterSearchResults = new FilmListAdapter(listFilm);
+                        exploreRecyclerView.setAdapter(adapterSearchResults);
+                    } else {
+                        resultsCountTxt.setText("❌ Không tìm thấy kết quả phù hợp với bộ lọc");
+                        exploreRecyclerView.setAdapter(new FilmListAdapter(new ListFilm()));
+                    }
+                });
+
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error applying filters: " + e.getMessage());
+                runOnUiThread(() -> {
+                    searchProgressBar.setVisibility(View.GONE);
+                    resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi áp dụng bộ lọc");
+                });
+            }
+        }).start();
+    }
+
+    // ✅ GIỮ NGUYÊN CÁC METHODS KHÁC (không thay đổi)
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
             BaseBottomNavigationHelper.setFabPosition(
@@ -148,7 +428,7 @@ public class ExploreActivity extends AppCompatActivity {
             fabHome.postDelayed(() -> {
                 Intent intent = new Intent(this, HistoryActivity.class);
                 startActivity(intent);
-            }, 200); // Giảm delay xuống 200ms
+            }, 200);
         });
 
         btnFavorites.setOnClickListener(v -> {
@@ -192,14 +472,13 @@ public class ExploreActivity extends AppCompatActivity {
         });
     }
 
-
     private void highlightCurrentTab() {
         int whiteColor = ContextCompat.getColor(this, android.R.color.white);
         int selectedColor = ContextCompat.getColor(this, R.color.selected_tab_color);
 
         btnHistory.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
         btnFavorites.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
-        btnSearch.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN); // ✅ Highlight Search
+        btnSearch.setColorFilter(selectedColor, PorterDuff.Mode.SRC_IN);
         btnProfile.setColorFilter(whiteColor, PorterDuff.Mode.SRC_IN);
     }
 
@@ -278,64 +557,6 @@ public class ExploreActivity extends AppCompatActivity {
         );
     }
 
-    private void performSearch() {
-        String query = searchEditText.getText().toString().trim();
-
-        if (query.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập từ khóa tìm kiếm", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        // Ẩn bàn phím
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
-
-        // Hiển thị kết quả tìm kiếm
-        showSearchResults();
-        searchProgressBar.setVisibility(View.VISIBLE);
-
-        // Tạo URL tìm kiếm
-        String searchUrl = "https://moviesapi.ir/api/v1/movies?q=" + query;
-
-        RequestQueue searchQueue = Volley.newRequestQueue(this);
-        StringRequest searchRequest = new StringRequest(Request.Method.GET, searchUrl,
-                new Response.Listener<String>() {
-                    @Override
-                    public void onResponse(String response) {
-                        Gson gson = new Gson();
-                        try {
-                            ListFilm items = gson.fromJson(response, ListFilm.class);
-
-                            if (items != null && items.getData() != null) {
-                                int resultCount = items.getData().size();
-                                resultsCountTxt.setText("🔍 Tìm thấy " + resultCount + " kết quả cho \"" + query + "\"");
-
-                                adapterSearchResults = new FilmListAdapter(items);
-                                exploreRecyclerView.setAdapter(adapterSearchResults);
-                            } else {
-                                resultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
-                            }
-
-                            searchProgressBar.setVisibility(View.GONE);
-                        } catch (Exception e) {
-                            Log.e("ExploreActivity", "Error parsing JSON: " + e.getMessage());
-                            searchProgressBar.setVisibility(View.GONE);
-                            resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
-                        }
-                    }
-                },
-                new Response.ErrorListener() {
-                    @Override
-                    public void onErrorResponse(VolleyError error) {
-                        Log.e("ExploreActivity", "Error: " + error.toString());
-                        searchProgressBar.setVisibility(View.GONE);
-                        resultsCountTxt.setText("🌐 Không thể kết nối đến máy chủ");
-                    }
-                });
-
-        searchQueue.add(searchRequest);
-    }
-
     private void showFilterDialog() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         View dialogView = getLayoutInflater().inflate(R.layout.layout_filter_dialog, null);
@@ -346,37 +567,15 @@ public class ExploreActivity extends AppCompatActivity {
             filterManager = new FilterManager(this);
         }
 
-        // Tạo danh sách thể loại
-        final String[][] genresList = {
-                {"28", "Hành Động"},
-                {"12", "Phiêu Lưu"},
-                {"16", "Hoạt Hình"},
-                {"35", "Hài"},
-                {"80", "Tội Phạm"},
-                {"18", "Chính Kịch"},
-                {"14", "Giả Tưởng"},
-                {"27", "Kinh Dị"},
-                {"10749", "Lãng Mạn"},
-                {"878", "Khoa Học Viễn Tưởng"}
-        };
-
-        // Hiển thị các checkbox thể loại
+        // ✅ LẤY GENRES TỪ DATABASE THAY VÌ HARD-CODE
         LinearLayout genreContainer = dialogView.findViewById(R.id.genreCheckboxContainer);
         List<CheckBox> genreCheckBoxes = new ArrayList<>();
         Set<String> selectedGenres = filterManager.getSelectedGenres();
 
-        // Tạo các checkbox thể loại
-        for (String[] genre : genresList) {
-            CheckBox checkBox = new CheckBox(this);
-            checkBox.setText(genre[1]);
-            checkBox.setTextColor(getResources().getColor(android.R.color.white));
-            checkBox.setTag(genre[0]);
-            checkBox.setChecked(selectedGenres.contains(genre[0]));
-            genreContainer.addView(checkBox);
-            genreCheckBoxes.add(checkBox);
-        }
+        // ✅ LOAD GENRES TỪ DATABASE
+        loadGenresFromDatabase(genreContainer, genreCheckBoxes, selectedGenres);
 
-        // Thiết lập radio buttons sắp xếp
+        // Thiết lập radio buttons sắp xếp (giữ nguyên)
         RadioGroup sortGroup = dialogView.findViewById(R.id.sortByRadioGroup);
         String currentSort = filterManager.getSortBy();
         if ("title".equals(currentSort)) {
@@ -428,52 +627,73 @@ public class ExploreActivity extends AppCompatActivity {
         dialog.show();
     }
 
-    private void applyFilters() {
-        // Hiển thị loading
-        searchProgressBar.setVisibility(View.VISIBLE);
-        showSearchResults();
+    // ✅ THÊM METHOD MỚI ĐỂ LOAD GENRES TỪ DATABASE
+    private void loadGenresFromDatabase(LinearLayout genreContainer,
+                                        List<CheckBox> genreCheckBoxes,
+                                        Set<String> selectedGenres) {
 
-        // Tạo URL với bộ lọc
-        String baseUrl = "https://moviesapi.ir/api/v1/movies";
-        String url = filterManager.buildFilterUrl(baseUrl);
+        // Hiển thị loading hoặc placeholder
+        TextView loadingText = new TextView(this);
+        loadingText.setText("Đang tải thể loại...");
+        loadingText.setTextColor(getResources().getColor(android.R.color.white));
+        genreContainer.addView(loadingText);
 
-        // Hiện tiêu đề
-        resultsCountTxt.setText("🎛️ Đang áp dụng bộ lọc...");
+        // Load từ database trong background thread
+        new Thread(() -> {
+            try {
+                // Lấy tất cả genre strings từ database
+                List<String> genreStrings = database.movieDao().getAllGenres();
 
-        // Gửi request
-        RequestQueue queue = Volley.newRequestQueue(this);
-        StringRequest request = new StringRequest(Request.Method.GET, url,
-                response -> {
-                    searchProgressBar.setVisibility(View.GONE);
+                // Xử lý để lấy unique genres
+                List<String> uniqueGenres = GenreHelper.extractGenresFromDatabase(genreStrings);
 
-                    try {
-                        Gson gson = new Gson();
-                        ListFilm items = gson.fromJson(response, ListFilm.class);
+                // Update UI trên main thread
+                runOnUiThread(() -> {
+                    // Xóa loading text
+                    genreContainer.removeView(loadingText);
 
-                        if (items != null && items.getData() != null) {
-                            // Hiển thị kết quả
-                            int resultCount = items.getData().size();
-                            resultsCountTxt.setText("🎯 Tìm thấy " + resultCount + " kết quả phù hợp");
+                    // Tạo checkboxes cho genres
+                    if (uniqueGenres.isEmpty()) {
+                        TextView noGenresText = new TextView(this);
+                        noGenresText.setText("Không có thể loại nào trong CSDL");
+                        noGenresText.setTextColor(getResources().getColor(android.R.color.white));
+                        genreContainer.addView(noGenresText);
+                    } else {
+                        for (String genre : uniqueGenres) {
+                            CheckBox checkBox = new CheckBox(this);
 
-                            // Thiết lập adapter
-                            adapterSearchResults = new FilmListAdapter(items);
-                            exploreRecyclerView.setAdapter(adapterSearchResults);
-                        } else {
-                            resultsCountTxt.setText("❌ Không tìm thấy kết quả phù hợp");
+                            // Sử dụng display name cho UI
+                            String displayName = GenreHelper.getGenreDisplayName(genre);
+                            checkBox.setText(displayName);
+                            checkBox.setTextColor(getResources().getColor(android.R.color.white));
+
+                            // Sử dụng genre gốc làm tag để filter
+                            checkBox.setTag(genre);
+                            checkBox.setChecked(selectedGenres.contains(genre));
+
+                            genreContainer.addView(checkBox);
+                            genreCheckBoxes.add(checkBox);
                         }
-                    } catch (Exception e) {
-                        Log.e("ExploreActivity", "Error parsing JSON: " + e.getMessage());
-                        resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi áp dụng bộ lọc");
                     }
-                },
-                error -> {
-                    searchProgressBar.setVisibility(View.GONE);
-                    resultsCountTxt.setText("🌐 Không thể kết nối đến máy chủ");
+
+                    Log.d("ExploreActivity", "Loaded " + uniqueGenres.size() + " genres from database");
                 });
 
-        queue.add(request);
-    }
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error loading genres from database: " + e.getMessage());
+                runOnUiThread(() -> {
+                    // Xóa loading text
+                    genreContainer.removeView(loadingText);
 
+                    // Hiển thị error message
+                    TextView errorText = new TextView(this);
+                    errorText.setText("Lỗi khi tải thể loại");
+                    errorText.setTextColor(getResources().getColor(android.R.color.holo_red_light));
+                    genreContainer.addView(errorText);
+                });
+            }
+        }).start();
+    }
     private void showSearchResults() {
         // Ẩn trending và categories
         trendingSection.setVisibility(View.GONE);
@@ -497,21 +717,15 @@ public class ExploreActivity extends AppCompatActivity {
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
         searchEditText.clearFocus();
-
-        // Icon X sẽ tự động ẩn vì TextWatcher
     }
 
-    private void loadTrendingMovies() {
-        // TODO: Load dữ liệu thực tế từ API
-        // Adapter trống đã được gán trong initViews() rồi
-    }
     private void focusSearchBox() {
         searchEditText.requestFocus();
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.showSoftInput(searchEditText, InputMethodManager.SHOW_IMPLICIT);
     }
+
     private void setFabToExplorePosition() {
-        // ✅ Sử dụng helper
         BaseBottomNavigationHelper.setFabPositionImmediate(
                 bottomAppBar,
                 fabHome,
