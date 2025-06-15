@@ -204,11 +204,13 @@ public interface MovieDao {
         public String year;
         public int totalViews;
     }
+
     @Query("SELECT DISTINCT genres FROM movies WHERE genres IS NOT NULL AND genres != ''")
     List<String> getAllGenres();
 
     @Query("SELECT genres FROM movies WHERE genres IS NOT NULL AND genres != '' GROUP BY genres")
     List<String> getUniqueGenres();
+
     @Query("SELECT m.* FROM movies m " +
             "INNER JOIN favorite_movies f ON m.id = f.movieId " +
             "WHERE f.userId = :userId " +
@@ -220,6 +222,7 @@ public interface MovieDao {
 
     @Query("SELECT COUNT(*) > 0 FROM favorite_movies WHERE movieId = :movieId AND userId = :userId")
     boolean isFavoriteMovie(int movieId, int userId);
+
     @Query("SELECT m.* FROM movies m " +
             "INNER JOIN favorite_movies fm ON m.id = fm.movieId " +
             "WHERE fm.userId = :userId " +
@@ -232,4 +235,6 @@ public interface MovieDao {
     @Query("SELECT COUNT(*) FROM favorite_movies WHERE userId = :userId")
     int getFavoriteMoviesCountByUser(int userId);
 
+    // ===== KHÔNG THÊM GÌ KHÁC VÀO ĐÂY =====
+    // Tất cả logic smart categorization đã được handle trong MainActivity
 }

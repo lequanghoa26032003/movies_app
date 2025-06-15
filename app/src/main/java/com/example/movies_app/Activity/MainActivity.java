@@ -32,8 +32,10 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.movies_app.Adapter.HorizontalGridMovieAdapter;
 import com.example.movies_app.Database.AppDatabase;
+import com.example.movies_app.Database.entity.FavoriteMovie;
 import com.example.movies_app.Database.entity.Movie;
 import com.example.movies_app.Database.entity.SearchHistory;
+import com.example.movies_app.Database.entity.WatchHistory;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
@@ -41,8 +43,10 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -61,6 +65,7 @@ public class MainActivity extends AppCompatActivity {
     private List<Movie> allLocalMovies;
     private List<Movie> newMovies;
     private List<Movie> upcomingMovies;
+
     // Search components
     private EditText homeSearchEditText;
     private LinearLayout homeSearchResultsContainer, homeMainContent;
@@ -74,6 +79,10 @@ public class MainActivity extends AppCompatActivity {
     private Handler searchHandler;
     private Runnable searchRunnable;
     private static final int SEARCH_DELAY = 300;
+
+    // ===== THÊM MỚI: Dynamic Category Titles =====
+    private TextView newMoviesTitle, upcomingTitle;
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -126,7 +135,6 @@ public class MainActivity extends AppCompatActivity {
 
         // Content views
         recyclerViewNewMovies = findViewById(R.id.view1);
-        // THAY ĐỔI: Sử dụng LinearLayoutManager với orientation HORIZONTAL
         recyclerViewNewMovies.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
         recyclerViewUpComing = findViewById(R.id.view2);
@@ -160,12 +168,13 @@ public class MainActivity extends AppCompatActivity {
                     allLocalMovies.clear();
                     allLocalMovies.addAll(movies);
 
-                    // Chia phim thành 2 nhóm
-                    divideMoviesIntoCategories(movies);
+                    // ===== SỬ DỤNG APPROACH 3: Phân loại thông minh =====
+                    divideMoviesIntoSmartCategories(movies);
 
                     runOnUiThread(() -> {
                         setupNewMoviesAdapter();
                         setupUpcomingMoviesAdapter();
+                        updateCategoryTitles();
 
                         loading1.setVisibility(View.GONE);
                         loading2.setVisibility(View.GONE);
@@ -189,13 +198,299 @@ public class MainActivity extends AppCompatActivity {
         });
     }
 
-    private void divideMoviesIntoCategories(List<Movie> movies) {
+    // ===== APPROACH 3: SMART CATEGORIZATION =====
+    private void divideMoviesIntoSmartCategories(List<Movie> movies) {
         newMovies.clear();
         upcomingMovies.clear();
 
-        // Chia đôi danh sách phim
-        int halfSize = movies.size() / 2;
+        try {
+            // Lấy preferences của user
+            SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+            int currentUserId = prefs.getInt("user_id", -1);
 
+            if (currentUserId != -1) {
+                // Phân tích user behavior
+                analyzeUserPreferencesAndCategorize(movies, currentUserId);
+            } else {
+                // Fallback: phân loại theo rating và popularity
+                categorizeByRatingAndPopularity(movies);
+            }
+
+            // Đảm bảo balance categories
+            balanceCategories(movies);
+
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error in smart categorization: " + e.getMessage());
+            // Fallback to simple division
+            fallbackDivision(movies);
+        }
+    }
+
+    private void analyzeUserPreferencesAndCategorize(List<Movie> movies, int userId) {
+        try {
+            // Lấy watch history và favorites của user từ database hiện tại
+            List<WatchHistory> watchHistoryList = database.movieDao().getWatchHistoryByUser(userId);
+            List<FavoriteMovie> favoriteMoviesList = database.movieDao().getFavoriteMoviesByUser(userId);
+
+            // Convert sang list Movie objects
+            List<Movie> viewedMovies = getMoviesFromWatchHistory(watchHistoryList);
+            List<Movie> favoriteMovies = getMoviesFromFavorites(favoriteMoviesList);
+
+            // Phân tích genre preferences
+            Map<String, Double> genreScores = analyzeGenrePreferences(viewedMovies, favoriteMovies);
+
+            // Phân tích rating preferences
+            double avgPreferredRating = calculateAveragePreferredRating(viewedMovies, favoriteMovies);
+
+            // Categorize movies based on analysis
+            for (Movie movie : movies) {
+                double relevanceScore = calculateMovieRelevanceScore(movie, genreScores, avgPreferredRating);
+
+                if (relevanceScore >= 7.0) {
+                    newMovies.add(movie); // "Đề xuất cho bạn"
+                } else {
+                    upcomingMovies.add(movie); // "Khám phá thêm"
+                }
+            }
+
+            // Sort theo relevance score
+            sortMoviesByRelevance(newMovies, genreScores, avgPreferredRating);
+            sortMoviesByPopularity(upcomingMovies);
+
+        } catch (Exception e) {
+            Log.e("MainActivity", "Error analyzing user preferences: " + e.getMessage());
+            categorizeByRatingAndPopularity(movies);
+        }
+    }
+
+    // Helper methods để convert data từ watch history và favorites
+    private List<Movie> getMoviesFromWatchHistory(List<WatchHistory> watchHistoryList) {
+        List<Movie> movies = new ArrayList<>();
+        if (watchHistoryList != null) {
+            for (WatchHistory history : watchHistoryList) {
+                try {
+                    Movie movie = database.movieDao().getMovieById(history.getMovieId());
+                    if (movie != null) {
+                        movies.add(movie);
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error getting movie from watch history: " + e.getMessage());
+                }
+            }
+        }
+        return movies;
+    }
+
+    private List<Movie> getMoviesFromFavorites(List<FavoriteMovie> favoriteMoviesList) {
+        List<Movie> movies = new ArrayList<>();
+        if (favoriteMoviesList != null) {
+            for (FavoriteMovie favorite : favoriteMoviesList) {
+                try {
+                    Movie movie = database.movieDao().getMovieById(favorite.getMovieId());
+                    if (movie != null) {
+                        movies.add(movie);
+                    }
+                } catch (Exception e) {
+                    Log.e("MainActivity", "Error getting movie from favorites: " + e.getMessage());
+                }
+            }
+        }
+        return movies;
+    }
+
+    private Map<String, Double> analyzeGenrePreferences(List<Movie> viewedMovies, List<Movie> favoriteMovies) {
+        Map<String, Double> genreScores = new HashMap<>();
+
+        // Phân tích từ favorite movies (weight = 2.0)
+        if (favoriteMovies != null) {
+            for (Movie movie : favoriteMovies) {
+                String genreString = movie.getGenres(); // Sử dụng getGenres() thay vì getGenre()
+                if (genreString != null && !genreString.isEmpty()) {
+                    String[] genres = genreString.split(",");
+                    for (String genre : genres) {
+                        genre = genre.trim().toLowerCase();
+                        genreScores.put(genre, genreScores.getOrDefault(genre, 0.0) + 2.0);
+                    }
+                }
+            }
+        }
+
+        // Phân tích từ viewed movies (weight = 1.0)
+        if (viewedMovies != null) {
+            for (Movie movie : viewedMovies) {
+                String genreString = movie.getGenres();
+                if (genreString != null && !genreString.isEmpty()) {
+                    String[] genres = genreString.split(",");
+                    for (String genre : genres) {
+                        genre = genre.trim().toLowerCase();
+                        genreScores.put(genre, genreScores.getOrDefault(genre, 0.0) + 1.0);
+                    }
+                }
+            }
+        }
+
+        return genreScores;
+    }
+
+    private double calculateAveragePreferredRating(List<Movie> viewedMovies, List<Movie> favoriteMovies) {
+        double totalRating = 0.0;
+        int count = 0;
+
+        // Ưu tiên rating từ favorite movies
+        if (favoriteMovies != null && !favoriteMovies.isEmpty()) {
+            for (Movie movie : favoriteMovies) {
+                try {
+                    // Chuyển đổi imdbRating string thành double
+                    double rating = parseRating(movie.getImdbRating());
+                    if (rating > 0) {
+                        totalRating += rating * 2; // Weight x2 for favorites
+                        count += 2;
+                    }
+                } catch (Exception e) {
+                    Log.w("MainActivity", "Error parsing rating for favorite movie: " + e.getMessage());
+                }
+            }
+        }
+
+        // Thêm rating từ viewed movies
+        if (viewedMovies != null && !viewedMovies.isEmpty()) {
+            for (Movie movie : viewedMovies) {
+                try {
+                    double rating = parseRating(movie.getImdbRating());
+                    if (rating > 0) {
+                        totalRating += rating;
+                        count++;
+                    }
+                } catch (Exception e) {
+                    Log.w("MainActivity", "Error parsing rating for viewed movie: " + e.getMessage());
+                }
+            }
+        }
+
+        return count > 0 ? totalRating / count : 7.0; // Default 7.0 nếu không có data
+    }
+
+    // Helper method để parse rating string thành double
+    private double parseRating(String ratingString) {
+        if (ratingString == null || ratingString.isEmpty()) {
+            return 0.0;
+        }
+        try {
+            return Double.parseDouble(ratingString);
+        } catch (NumberFormatException e) {
+            Log.w("MainActivity", "Cannot parse rating: " + ratingString);
+            return 0.0;
+        }
+    }
+
+    private double calculateMovieRelevanceScore(Movie movie, Map<String, Double> genreScores, double avgPreferredRating) {
+        double movieRating = parseRating(movie.getImdbRating());
+        double score = movieRating > 0 ? movieRating : 6.0; // Base score
+
+        // Bonus điểm cho genre preference
+        String genreString = movie.getGenres();
+        if (genreString != null && !genreString.isEmpty()) {
+            String[] genres = genreString.toLowerCase().split(",");
+            double genreBonus = 0.0;
+
+            for (String genre : genres) {
+                genre = genre.trim();
+                if (genreScores.containsKey(genre)) {
+                    genreBonus += genreScores.get(genre) * 0.5; // 0.5 điểm per genre match
+                }
+            }
+
+            score += Math.min(genreBonus, 3.0); // Max 3 điểm bonus cho genre
+        }
+
+        // Bonus điểm nếu rating gần với preference
+        if (movieRating > 0) {
+            double ratingDiff = Math.abs(movieRating - avgPreferredRating);
+            if (ratingDiff <= 1.0) {
+                score += (1.0 - ratingDiff); // Càng gần càng nhiều điểm
+            }
+        }
+
+        // Bonus điểm cho phim có view count cao (trending)
+        if (movie.getViewCount() > 100) { // Giảm threshold xuống 100
+            score += 0.5;
+        }
+
+        return score;
+    }
+
+    private void categorizeByRatingAndPopularity(List<Movie> movies) {
+        // Backup method khi không có user data
+        List<Movie> sortedMovies = new ArrayList<>(movies);
+
+        // Sort theo rating giảm dần
+        sortedMovies.sort((m1, m2) -> {
+            double rating1 = parseRating(m1.getImdbRating());
+            double rating2 = parseRating(m2.getImdbRating());
+            return Double.compare(rating2, rating1);
+        });
+
+        int highRatedCount = 0;
+        for (Movie movie : sortedMovies) {
+            double rating = parseRating(movie.getImdbRating());
+            if (rating >= 7.5 && highRatedCount < movies.size() * 0.6) {
+                newMovies.add(movie);
+                highRatedCount++;
+            } else {
+                upcomingMovies.add(movie);
+            }
+        }
+    }
+
+    private void sortMoviesByRelevance(List<Movie> movies, Map<String, Double> genreScores, double avgPreferredRating) {
+        movies.sort((m1, m2) -> {
+            double score1 = calculateMovieRelevanceScore(m1, genreScores, avgPreferredRating);
+            double score2 = calculateMovieRelevanceScore(m2, genreScores, avgPreferredRating);
+            return Double.compare(score2, score1); // Descending order
+        });
+    }
+
+    private void sortMoviesByPopularity(List<Movie> movies) {
+        movies.sort((m1, m2) -> {
+            // Sort by view count, then rating
+            int viewCompare = Integer.compare(m2.getViewCount(), m1.getViewCount());
+            if (viewCompare != 0) return viewCompare;
+
+            double rating1 = parseRating(m1.getImdbRating());
+            double rating2 = parseRating(m2.getImdbRating());
+            return Double.compare(rating2, rating1);
+        });
+    }
+
+    private void balanceCategories(List<Movie> allMovies) {
+        // Đảm bảo mỗi category có ít nhất 3 phim
+        if (newMovies.size() < 3 && upcomingMovies.size() > 6) {
+            // Move some movies from upcoming to new
+            List<Movie> movedMovies = new ArrayList<>(upcomingMovies.subList(0, Math.min(3, upcomingMovies.size())));
+            newMovies.addAll(movedMovies);
+            upcomingMovies.removeAll(movedMovies);
+        } else if (upcomingMovies.size() < 3 && newMovies.size() > 6) {
+            // Move some movies from new to upcoming
+            List<Movie> movedMovies = new ArrayList<>(newMovies.subList(newMovies.size() - 3, newMovies.size()));
+            upcomingMovies.addAll(0, movedMovies);
+            newMovies.removeAll(movedMovies);
+        }
+
+        // Giới hạn số lượng để tránh lag
+        if (newMovies.size() > 20) {
+            newMovies = new ArrayList<>(newMovies.subList(0, 20));
+        }
+        if (upcomingMovies.size() > 20) {
+            upcomingMovies = new ArrayList<>(upcomingMovies.subList(0, 20));
+        }
+    }
+
+    private void fallbackDivision(List<Movie> movies) {
+        // Original simple division as fallback
+        newMovies.clear();
+        upcomingMovies.clear();
+
+        int halfSize = movies.size() / 2;
         for (int i = 0; i < movies.size(); i++) {
             if (i < halfSize) {
                 newMovies.add(movies.get(i));
@@ -205,6 +500,37 @@ public class MainActivity extends AppCompatActivity {
         }
     }
 
+    // ===== DYNAMIC CATEGORY TITLES =====
+    private void updateCategoryTitles() {
+        // Uncomment nếu bạn có TextView cho titles trong layout
+        /*
+        if (newMoviesTitle != null && upcomingTitle != null) {
+            SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+            int currentUserId = prefs.getInt("user_id", -1);
+
+            if (currentUserId != -1) {
+                newMoviesTitle.setText("⭐ Đề xuất cho bạn");
+                upcomingTitle.setText("🔍 Khám phá thêm");
+            } else {
+                newMoviesTitle.setText("🎬 Phim chất lượng cao");
+                upcomingTitle.setText("🎯 Phim thịnh hành");
+            }
+        }
+        */
+
+        // Log để debug
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        int currentUserId = prefs.getInt("user_id", -1);
+
+        if (currentUserId != -1) {
+            Log.d("MainActivity", "Smart categorization applied for user: " + currentUserId);
+            Log.d("MainActivity", "Recommended movies: " + newMovies.size() + ", Explore movies: " + upcomingMovies.size());
+        } else {
+            Log.d("MainActivity", "Fallback categorization applied (no user login)");
+        }
+    }
+
+    // ===== GIỮ NGUYÊN CÁC METHOD CŨ =====
     private void setupNewMoviesAdapter() {
         adapterNewMovies = new HorizontalGridMovieAdapter(this, newMovies);
         recyclerViewNewMovies.setAdapter(adapterNewMovies);
@@ -247,8 +573,6 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSearchListeners() {
-        // ===== THAY THẾ PHẦN setupSearchListeners CŨ =====
-
         // Realtime search với TextWatcher
         homeSearchEditText.addTextChangedListener(new TextWatcher() {
             @Override
@@ -394,6 +718,7 @@ public class MainActivity extends AppCompatActivity {
             saveSearchHistory(query);
         }
     }
+
     private void clearSearchResults() {
         homeSearchResultsContainer.setVisibility(View.GONE);
         homeMainContent.setVisibility(View.VISIBLE);
@@ -420,6 +745,7 @@ public class MainActivity extends AppCompatActivity {
             }
         });
     }
+
     private void showSearchResults() {
         homeMainContent.setVisibility(View.GONE);
         homeSearchResultsContainer.setVisibility(View.VISIBLE);

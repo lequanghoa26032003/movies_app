@@ -55,6 +55,7 @@ import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Collections;
 import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
@@ -87,9 +88,7 @@ public class ExploreActivity extends AppCompatActivity {
     private Runnable searchRunnable;
     private static final int SEARCH_DELAY = 400;
     private boolean isSearching = false;
-
     private boolean isUpdatingText = false;
-
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -97,18 +96,18 @@ public class ExploreActivity extends AppCompatActivity {
         setContentView(R.layout.activity_explore);
 
         searchHandler = new Handler(Looper.getMainLooper());
-
         database = AppDatabase.getInstance(this);
-
         filterManager = new FilterManager(this);
+
         initViews();
         setupBottomNavigation();
         highlightCurrentTab();
         setupSearchListeners();
         focusSearchBox();
 
-        loadTrendingMoviesFromDB();
-        loadPopularCategoriesFromDB();
+        // ✅ SỬ DỤNG PHƯƠNG PHÁP PHÂN CHIA THÔNG MINH MỚI
+        loadSmartTrendingMovies();
+        loadSmartPopularCategories();
 
         setFabToExplorePosition();
 
@@ -150,25 +149,30 @@ public class ExploreActivity extends AppCompatActivity {
         btnProfile = findViewById(R.id.btn_profile);
         fabHome = findViewById(R.id.fab_home);
         btnMain = findViewById(R.id.btn_center);
-
-        // ✅ XÓA CÁC EmptyAdapter - sẽ được set trong load methods
     }
 
-    // ✅ LOAD TRENDING MOVIES TỪ DATABASE
-    private void loadTrendingMoviesFromDB() {
+    // ✅ PHƯƠNG PHÁP PHÂN CHIA THÔNG MINH MỚI - PHIM THỊNH HÀNH
+    private void loadSmartTrendingMovies() {
         new Thread(() -> {
             try {
-                // Lấy tất cả movies từ database
-                List<Movie> movies = database.movieDao().getAllMovies();
+                List<Movie> allMovies = database.movieDao().getAllMovies();
 
-                if (movies != null && !movies.isEmpty()) {
-                    // Convert sang ListFilm format
-                    ListFilm listFilm = convertMoviesToListFilm(movies);
+                if (allMovies != null && !allMovies.isEmpty()) {
+                    List<MovieScore> movieScores = calculateTrendingScores(allMovies);
 
-                    // Update UI trên main thread
+                    // Lấy top 15 phim có điểm cao nhất
+                    List<Movie> trendingMovies = new ArrayList<>();
+                    int count = Math.min(15, movieScores.size());
+
+                    for (int i = 0; i < count; i++) {
+                        trendingMovies.add(movieScores.get(i).movie);
+                    }
+
+                    ListFilm listFilm = convertMoviesToListFilm(trendingMovies);
+
                     runOnUiThread(() -> {
                         displayTrendingMovies(listFilm);
-                        Log.d("ExploreActivity", "Loaded " + movies.size() + " trending movies from DB");
+                        Log.d("ExploreActivity", "✅ Loaded " + trendingMovies.size() + " smart trending movies");
                     });
                 } else {
                     runOnUiThread(() -> {
@@ -177,26 +181,27 @@ public class ExploreActivity extends AppCompatActivity {
                     });
                 }
             } catch (Exception e) {
-                Log.e("ExploreActivity", "Error loading trending movies from DB: " + e.getMessage());
+                Log.e("ExploreActivity", "Error loading smart trending movies: " + e.getMessage());
                 runOnUiThread(() -> {
-                    Toast.makeText(this, "Lỗi khi tải phim thịnh hành", Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Lỗi khi tải phim thịnh hành thông minh", Toast.LENGTH_SHORT).show();
                 });
             }
         }).start();
     }
 
-    private void loadPopularCategoriesFromDB() {
+    // ✅ PHƯƠNG PHÁP PHÂN CHIA THÔNG MINH MỚI - THỂ LOẠI PHỔ BIẾN
+    private void loadSmartPopularCategories() {
         new Thread(() -> {
             try {
-                List<Movie> highRatedMovies = database.movieDao().getAllMovies();
+                List<Movie> allMovies = database.movieDao().getAllMovies();
 
-                if (highRatedMovies != null && !highRatedMovies.isEmpty()) {
-                    List<Movie> filteredMovies = filterHighRatedMovies(highRatedMovies);
-                    ListFilm listFilm = convertMoviesToListFilm(filteredMovies);
+                if (allMovies != null && !allMovies.isEmpty()) {
+                    List<Movie> popularMovies = getPopularMoviesByGenre(allMovies);
+                    ListFilm listFilm = convertMoviesToListFilm(popularMovies);
 
                     runOnUiThread(() -> {
                         displayCategories(listFilm);
-                        Log.d("ExploreActivity", "Loaded " + filteredMovies.size() + " popular movies from DB");
+                        Log.d("ExploreActivity", "✅ Loaded " + popularMovies.size() + " smart popular movies by genre");
                     });
                 } else {
                     runOnUiThread(() -> {
@@ -204,31 +209,124 @@ public class ExploreActivity extends AppCompatActivity {
                     });
                 }
             } catch (Exception e) {
-                Log.e("ExploreActivity", "Error loading popular categories from DB: " + e.getMessage());
+                Log.e("ExploreActivity", "Error loading smart popular categories: " + e.getMessage());
             }
         }).start();
     }
-    private List<Movie> filterHighRatedMovies(List<Movie> allMovies) {
-        List<Movie> popularMovies = new ArrayList<>();
 
-        for (Movie movie : allMovies) {
+    // ✅ THUẬT TOÁN TÍNH ĐIỂM CHO PHIM THỊNH HÀNH
+    private List<MovieScore> calculateTrendingScores(List<Movie> movies) {
+        List<MovieScore> movieScores = new ArrayList<>();
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+        for (Movie movie : movies) {
+            double score = 0;
+
+            // 1. ĐIỂM RATING (Trọng số 40%)
             try {
-                if (movie.getImdbRating() != null &&
-                        !movie.getImdbRating().isEmpty() &&
-                        Double.parseDouble(movie.getImdbRating()) >= 7.0) {
-                    popularMovies.add(movie);
+                if (movie.getImdbRating() != null && !movie.getImdbRating().isEmpty()) {
+                    double rating = Double.parseDouble(movie.getImdbRating());
+                    score += rating * 0.4; // Max 4.0 điểm
                 }
             } catch (NumberFormatException e) {
-                // Skip movies with invalid rating
+                // Nếu không có rating, cho 0 điểm phần này
+            }
+
+            // 2. ĐIỂM NĂM PHÁT HÀNH (Trọng số 30%)
+            try {
+                if (movie.getYear() != null && !movie.getYear().isEmpty()) {
+                    int year = Integer.parseInt(movie.getYear());
+
+                    if (year >= 2022) {
+                        score += 3.0 * 0.3; // Phim mới nhất: 0.9 điểm
+                    } else if (year >= 2018) {
+                        score += 2.5 * 0.3; // Phim gần đây: 0.75 điểm
+                    } else if (year >= 2010) {
+                        score += 2.0 * 0.3; // Phim cũ hơn: 0.6 điểm
+                    } else {
+                        score += 1.0 * 0.3; // Phim cũ: 0.3 điểm
+                    }
+                }
+            } catch (NumberFormatException e) {
+                score += 0.5 * 0.3; // Không xác định năm: 0.15 điểm
+            }
+
+            // 3. ĐIỂM THỂ LOẠI HOT (Trọng số 30%)
+            String[] hotGenres = {"Action", "Adventure", "Sci-Fi", "Thriller", "Comedy", "Drama"};
+            if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
+                String movieGenres = movie.getGenres().toLowerCase();
+                for (String hotGenre : hotGenres) {
+                    if (movieGenres.contains(hotGenre.toLowerCase())) {
+                        score += 1.0 * 0.3; // 0.3 điểm cho mỗi thể loại hot
+                        break; // Chỉ cộng 1 lần cho mỗi phim
+                    }
+                }
+            }
+
+            movieScores.add(new MovieScore(movie, score));
+        }
+
+        // Sắp xếp theo điểm giảm dần
+        Collections.sort(movieScores, (ms1, ms2) -> Double.compare(ms2.score, ms1.score));
+
+        return movieScores;
+    }
+
+    // ✅ LẤY PHIM PHỔ BIẾN THEO THỂ LOẠI
+    private List<Movie> getPopularMoviesByGenre(List<Movie> allMovies) {
+        List<Movie> popularMovies = new ArrayList<>();
+
+        // Các thể loại phổ biến nhất
+        String[] popularGenres = {"Action", "Comedy", "Drama", "Adventure", "Sci-Fi", "Thriller", "Romance"};
+
+        for (String genre : popularGenres) {
+            List<Movie> genreMovies = new ArrayList<>();
+
+            // Tìm phim thuộc thể loại này
+            for (Movie movie : allMovies) {
+                if (movie.getGenres() != null &&
+                        movie.getGenres().toLowerCase().contains(genre.toLowerCase())) {
+                    genreMovies.add(movie);
+                }
+            }
+
+            // Sắp xếp theo rating
+            Collections.sort(genreMovies, (m1, m2) -> {
+                try {
+                    double rating1 = Double.parseDouble(m1.getImdbRating() != null ? m1.getImdbRating() : "0");
+                    double rating2 = Double.parseDouble(m2.getImdbRating() != null ? m2.getImdbRating() : "0");
+                    return Double.compare(rating2, rating1); // Giảm dần
+                } catch (NumberFormatException e) {
+                    return 0;
+                }
+            });
+
+            // Lấy top 2 phim hay nhất của thể loại này
+            int count = Math.min(2, genreMovies.size());
+            for (int i = 0; i < count; i++) {
+                if (!popularMovies.contains(genreMovies.get(i))) {
+                    popularMovies.add(genreMovies.get(i));
+                }
+            }
+
+            // Giới hạn tổng số phim
+            if (popularMovies.size() >= 15) {
+                break;
             }
         }
 
-        // Giới hạn số lượng hiển thị
-        if (popularMovies.size() > 10) {
-            return popularMovies.subList(0, 10);
-        }
-
         return popularMovies;
+    }
+
+    // ✅ CLASS HELPER CHO ĐIỂM PHIM
+    private static class MovieScore {
+        Movie movie;
+        double score;
+
+        MovieScore(Movie movie, double score) {
+            this.movie = movie;
+            this.score = score;
+        }
     }
 
     // ✅ HIỂN THỊ TRENDING MOVIES
@@ -286,8 +384,7 @@ public class ExploreActivity extends AppCompatActivity {
         return listFilm;
     }
 
-
-
+    // ===== CÁC PHƯƠNG THỨC KHÁC GIỮ NGUYÊN =====
     private void saveSearchHistory(String query) {
         new Thread(() -> {
             try {
@@ -307,7 +404,6 @@ public class ExploreActivity extends AppCompatActivity {
             }
         }).start();
     }
-
 
     private void applyFilters() {
         searchProgressBar.setVisibility(View.VISIBLE);
@@ -361,11 +457,9 @@ public class ExploreActivity extends AppCompatActivity {
                                     includeMovie = false;
                                 }
                             } catch (NumberFormatException e) {
-                                // Skip movies with invalid year format
                                 includeMovie = false;
                             }
                         } else {
-                            // Skip movies without year info when year filter is applied
                             includeMovie = false;
                         }
                     }
@@ -423,7 +517,7 @@ public class ExploreActivity extends AppCompatActivity {
                     } else {
                         resultsCountTxt.setText("❌ Không tìm thấy kết quả phù hợp với bộ lọc");
                         ListFilm emptyListFilm = new ListFilm();
-                        emptyListFilm.setData(new ArrayList<>()); // đảm bảo không null!
+                        emptyListFilm.setData(new ArrayList<>());
                         exploreRecyclerView.setAdapter(new FilmListAdapter(emptyListFilm));
                     }
                 });
@@ -553,7 +647,6 @@ public class ExploreActivity extends AppCompatActivity {
             Drawable drawableRight = searchEditText.getCompoundDrawables()[2];
             if (drawableRight != null && event.getRawX() >= (searchEditText.getRight()
                     - drawableRight.getBounds().width() - searchEditText.getPaddingEnd())) {
-                // ===== SỬ DỤNG METHOD AN TOÀN ĐỂ CLEAR =====
                 clearSearchSafely();
                 return true;
             }
@@ -577,27 +670,18 @@ public class ExploreActivity extends AppCompatActivity {
 
     private void clearSearchSafely() {
         try {
-            // Cancel any pending search
             if (searchHandler != null && searchRunnable != null) {
                 searchHandler.removeCallbacks(searchRunnable);
             }
 
-            // Reset search state
             isSearching = false;
-
-            // ===== SET FLAG ĐỂ TRÁNH TRIGGER TEXTWATCHER =====
             isUpdatingText = true;
 
-            // Clear search text
             searchEditText.setText("");
-
-            // Reset flag
             isUpdatingText = false;
 
-            // Clear UI
             clearSearchResultsOnly();
 
-            // Hide keyboard and clear focus
             InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
             if (imm != null) {
                 imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
@@ -606,22 +690,18 @@ public class ExploreActivity extends AppCompatActivity {
 
         } catch (Exception e) {
             Log.e("ExploreActivity", "Error in clearSearchSafely: " + e.getMessage());
-            // Reset flag nếu có lỗi
             isUpdatingText = false;
         }
     }
 
     private void clearSearchResultsOnly() {
         try {
-            // Cancel any pending search
             if (searchHandler != null && searchRunnable != null) {
                 searchHandler.removeCallbacks(searchRunnable);
             }
 
-            // Reset search state
             isSearching = false;
 
-            // Hide search results container
             if (searchResultsContainer != null) {
                 searchResultsContainer.setVisibility(View.GONE);
             }
@@ -630,7 +710,6 @@ public class ExploreActivity extends AppCompatActivity {
                 searchProgressBar.setVisibility(View.GONE);
             }
 
-            // Show main content sections
             if (trendingSection != null) {
                 trendingSection.setVisibility(View.VISIBLE);
             }
@@ -639,13 +718,11 @@ public class ExploreActivity extends AppCompatActivity {
                 categorySection.setVisibility(View.VISIBLE);
             }
 
-            // Clear results text
             if (resultsCountTxt != null) {
                 resultsCountTxt.setText("");
                 resultsCountTxt.setVisibility(View.GONE);
             }
 
-            // Hide close icon
             hideCloseIcon();
 
         } catch (Exception e) {
@@ -678,26 +755,21 @@ public class ExploreActivity extends AppCompatActivity {
         View dialogView = getLayoutInflater().inflate(R.layout.layout_filter_dialog, null);
         builder.setView(dialogView);
 
-        // Khởi tạo FilterManager nếu chưa có
         if (filterManager == null) {
             filterManager = new FilterManager(this);
         }
 
-        // ========== THIẾT LẬP YEAR SPINNERS ==========
         Spinner yearFromSpinner = dialogView.findViewById(R.id.yearFromSpinner);
         Spinner yearToSpinner = dialogView.findViewById(R.id.yearToSpinner);
 
         setupYearSpinners(yearFromSpinner, yearToSpinner);
 
-        // ========== THIẾT LẬP GENRES ==========
         LinearLayout genreContainer = dialogView.findViewById(R.id.genreCheckboxContainer);
         List<CheckBox> genreCheckBoxes = new ArrayList<>();
         Set<String> selectedGenres = filterManager.getSelectedGenres();
 
-        // Load genres từ database
         loadGenresFromDatabase(genreContainer, genreCheckBoxes, selectedGenres);
 
-        // ========== THIẾT LẬP SORT RADIO BUTTONS ==========
         RadioGroup sortGroup = dialogView.findViewById(R.id.sortByRadioGroup);
         String currentSort = filterManager.getSortBy();
         if ("title".equals(currentSort)) {
@@ -708,12 +780,10 @@ public class ExploreActivity extends AppCompatActivity {
             ((RadioButton) dialogView.findViewById(R.id.sortByYear)).setChecked(true);
         }
 
-        // ========== THIẾT LẬP BUTTONS ==========
         Button applyBtn = dialogView.findViewById(R.id.applyFilterBtn);
         final AlertDialog dialog = builder.create();
 
         applyBtn.setOnClickListener(v -> {
-            // Lưu thể loại đã chọn
             Set<String> genresToSave = new HashSet<>();
             for (CheckBox cb : genreCheckBoxes) {
                 if (cb.isChecked()) {
@@ -722,7 +792,6 @@ public class ExploreActivity extends AppCompatActivity {
             }
             filterManager.saveGenres(genresToSave);
 
-            // Lưu year range
             String yearFromStr = yearFromSpinner.getSelectedItem().toString();
             String yearToStr = yearToSpinner.getSelectedItem().toString();
 
@@ -736,7 +805,6 @@ public class ExploreActivity extends AppCompatActivity {
                 }
             }
 
-            // Lưu tùy chọn sắp xếp
             int checkedId = sortGroup.getCheckedRadioButtonId();
             String sortBy = "title";
             if (checkedId == R.id.sortByRating) {
@@ -746,13 +814,10 @@ public class ExploreActivity extends AppCompatActivity {
             }
             filterManager.saveSortBy(sortBy);
 
-            // Áp dụng bộ lọc
             applyFilters();
-
             dialog.dismiss();
         });
 
-        // Thiết lập nút đặt lại
         Button resetBtn = dialogView.findViewById(R.id.resetFilterBtn);
         resetBtn.setOnClickListener(v -> {
             filterManager.resetFilters();
@@ -762,17 +827,16 @@ public class ExploreActivity extends AppCompatActivity {
 
         dialog.show();
     }
+
     private void setupYearSpinners(Spinner yearFromSpinner, Spinner yearToSpinner) {
-        // Tạo danh sách năm từ 1970 đến năm hiện tại
         List<String> years = new ArrayList<>();
-        years.add("Tất cả"); // Option đầu tiên
+        years.add("Tất cả");
 
         int currentYear = Calendar.getInstance().get(Calendar.YEAR);
-        for (int year = currentYear; year >= 1970; year--) { // Từ mới nhất đến cũ nhất
+        for (int year = currentYear; year >= 1970; year--) {
             years.add(String.valueOf(year));
         }
 
-        // Tạo adapter cho spinner
         ArrayAdapter<String> yearAdapter = new ArrayAdapter<String>(this,
                 android.R.layout.simple_spinner_item, years) {
             @Override
@@ -785,15 +849,12 @@ public class ExploreActivity extends AppCompatActivity {
         };
         yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
 
-        // Set adapter cho cả 2 spinner
         yearFromSpinner.setAdapter(yearAdapter);
         yearToSpinner.setAdapter(yearAdapter);
 
-        // Set giá trị hiện tại từ FilterManager
         int savedYearFrom = filterManager.getYearFrom();
         int savedYearTo = filterManager.getYearTo();
 
-        // Tìm và set position cho yearFrom
         if (savedYearFrom > 1970) {
             String yearFromStr = String.valueOf(savedYearFrom);
             int fromPosition = years.indexOf(yearFromStr);
@@ -802,7 +863,6 @@ public class ExploreActivity extends AppCompatActivity {
             }
         }
 
-        // Tìm và set position cho yearTo
         if (savedYearTo < currentYear) {
             String yearToStr = String.valueOf(savedYearTo);
             int toPosition = years.indexOf(yearToStr);
@@ -818,27 +878,19 @@ public class ExploreActivity extends AppCompatActivity {
                                         List<CheckBox> genreCheckBoxes,
                                         Set<String> selectedGenres) {
 
-        // Hiển thị loading hoặc placeholder
         TextView loadingText = new TextView(this);
         loadingText.setText("Đang tải thể loại...");
         loadingText.setTextColor(getResources().getColor(android.R.color.white));
         genreContainer.addView(loadingText);
 
-        // Load từ database trong background thread
         new Thread(() -> {
             try {
-                // Lấy tất cả genre strings từ database
                 List<String> genreStrings = database.movieDao().getAllGenres();
-
-                // Xử lý để lấy unique genres
                 List<String> uniqueGenres = GenreHelper.extractGenresFromDatabase(genreStrings);
 
-                // Update UI trên main thread
                 runOnUiThread(() -> {
-                    // Xóa loading text
                     genreContainer.removeView(loadingText);
 
-                    // Tạo checkboxes cho genres
                     if (uniqueGenres.isEmpty()) {
                         TextView noGenresText = new TextView(this);
                         noGenresText.setText("Không có thể loại nào trong CSDL");
@@ -848,12 +900,10 @@ public class ExploreActivity extends AppCompatActivity {
                         for (String genre : uniqueGenres) {
                             CheckBox checkBox = new CheckBox(this);
 
-                            // Sử dụng display name cho UI
                             String displayName = GenreHelper.getGenreDisplayName(genre);
                             checkBox.setText(displayName);
                             checkBox.setTextColor(getResources().getColor(android.R.color.white));
 
-                            // Sử dụng genre gốc làm tag để filter
                             checkBox.setTag(genre);
                             checkBox.setChecked(selectedGenres.contains(genre));
 
@@ -868,10 +918,8 @@ public class ExploreActivity extends AppCompatActivity {
             } catch (Exception e) {
                 Log.e("ExploreActivity", "Error loading genres from database: " + e.getMessage());
                 runOnUiThread(() -> {
-                    // Xóa loading text
                     genreContainer.removeView(loadingText);
 
-                    // Hiển thị error message
                     TextView errorText = new TextView(this);
                     errorText.setText("Lỗi khi tải thể loại");
                     errorText.setTextColor(getResources().getColor(android.R.color.holo_red_light));
@@ -880,55 +928,47 @@ public class ExploreActivity extends AppCompatActivity {
             }
         }).start();
     }
+
     private void showSearchResults() {
-        // Ẩn trending và categories
         trendingSection.setVisibility(View.GONE);
         categorySection.setVisibility(View.GONE);
-
-        // Hiển thị kết quả tìm kiếm
         searchResultsContainer.setVisibility(View.VISIBLE);
     }
 
     private void clearSearch() {
         clearSearchSafely();
     }
+
     private void performRealtimeSearch(String query) {
         if (query.isEmpty()) {
-            clearSearchResultsOnly(); // Không clear text, chỉ clear UI
+            clearSearchResultsOnly();
             return;
         }
 
-        // Prevent multiple simultaneous searches
         if (isSearching) {
             return;
         }
 
-        // Cancel previous search
         if (searchRunnable != null) {
             searchHandler.removeCallbacks(searchRunnable);
         }
 
         isSearching = true;
 
-        // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         if (imm != null) {
             imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
         }
 
-        // Show search results
         showSearchResults();
 
-        // Show loading for searches with 2+ characters
         if (query.length() >= 2) {
             searchProgressBar.setVisibility(View.VISIBLE);
             resultsCountTxt.setText("🔍 Đang tìm kiếm \"" + query + "\"...");
         }
 
-        // Search in background thread
         new Thread(() -> {
             try {
-                // Add small delay to prevent too frequent searches
                 if (query.length() < 3) {
                     Thread.sleep(200);
                 }
@@ -964,13 +1004,11 @@ public class ExploreActivity extends AppCompatActivity {
                     }
                 });
 
-                // Save search history
                 if (query.length() >= 3) {
                     saveSearchHistory(query);
                 }
 
             } catch (InterruptedException e) {
-                // Search was cancelled
                 runOnUiThread(() -> isSearching = false);
             } catch (Exception e) {
                 Log.e("ExploreActivity", "Error in realtime search: " + e.getMessage());
@@ -1004,13 +1042,11 @@ public class ExploreActivity extends AppCompatActivity {
     protected void onDestroy() {
         super.onDestroy();
 
-        // ===== CLEAN UP ĐỂ TRÁNH MEMORY LEAK =====
         try {
             if (searchHandler != null && searchRunnable != null) {
                 searchHandler.removeCallbacks(searchRunnable);
             }
 
-            // Reset flags
             isUpdatingText = false;
             isSearching = false;
 
@@ -1018,5 +1054,4 @@ public class ExploreActivity extends AppCompatActivity {
             Log.e("ExploreActivity", "Error in onDestroy cleanup: " + e.getMessage());
         }
     }
-
 }
