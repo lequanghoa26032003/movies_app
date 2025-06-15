@@ -47,7 +47,9 @@
                     android:layout_height="120dp"
                     android:src="@drawable/ic_person"
                     android:background="@drawable/circular_background"
-                    android:layout_marginBottom="16dp" />
+                    android:layout_marginBottom="16dp"
+                    android:clickable="true"
+                    android:focusable="true" />
 
                 <TextView
                     android:id="@+id/userName"
@@ -77,19 +79,23 @@
                 android:layout_marginBottom="32dp">
 
                 <LinearLayout
+                    android:id="@+id/watchedStatsContainer"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:background="@drawable/stat_background"
+                    android:background="@drawable/stat_background_clickable"
                     android:padding="16dp"
-                    android:layout_marginEnd="8dp">
+                    android:layout_marginEnd="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <TextView
+                        android:id="@+id/watchedMoviesCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="25"
+                        android:text="0"
                         android:textSize="20sp"
                         android:textColor="#FFD700"
                         android:textStyle="bold" />
@@ -97,26 +103,38 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Phim đã xem"
+                        android:text="📺 Phim đã xem"
                         android:textSize="12sp"
                         android:textColor="#CCCCCC" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👆 Nhấn để xem"
+                        android:textSize="10sp"
+                        android:textColor="#999999"
+                        android:layout_marginTop="4dp" />
 
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/favoriteStatsContainer"
                     android:layout_width="0dp"
                     android:layout_height="wrap_content"
                     android:layout_weight="1"
                     android:orientation="vertical"
                     android:gravity="center"
-                    android:background="@drawable/stat_background"
+                    android:background="@drawable/stat_background_clickable"
                     android:padding="16dp"
-                    android:layout_marginStart="8dp">
+                    android:layout_marginStart="8dp"
+                    android:clickable="true"
+                    android:focusable="true">
 
                     <TextView
+                        android:id="@+id/favoriteCount"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="8"
+                        android:text="0"
                         android:textSize="20sp"
                         android:textColor="#FFD700"
                         android:textStyle="bold" />
@@ -124,14 +142,21 @@
                     <TextView
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:text="Yêu thích"
+                        android:text="❤️ Yêu thích"
                         android:textSize="12sp"
                         android:textColor="#CCCCCC" />
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="👆 Nhấn để xem"
+                        android:textSize="10sp"
+                        android:textColor="#999999"
+                        android:layout_marginTop="4dp" />
 
                 </LinearLayout>
 
             </LinearLayout>
-
             <!-- Menu Options -->
             <LinearLayout
                 android:layout_width="match_parent"
@@ -147,8 +172,111 @@
                     android:textStyle="bold"
                     android:layout_marginBottom="16dp" />
 
+
+                <!-- Edit Profile Option -->
+                <LinearLayout
+                    android:id="@+id/editProfileOption"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="✏️"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="16dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Chỉnh sửa thông tin"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+                <!-- Change Password Option -->
+                <LinearLayout
+                    android:id="@+id/changePasswordOption"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🔒"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="16dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Đổi mật khẩu"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+                <!-- User Preferences Option -->
+                <LinearLayout
+                    android:id="@+id/preferencesOption"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="⚙️"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="16dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Tùy chọn người dùng"
+                        android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+                <!-- Thêm phone và member since info (optional) -->
+                <TextView
+                    android:id="@+id/userPhone"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Chưa cập nhật"
+                    android:textSize="12sp"
+                    android:textColor="#CCCCCC"
+                    android:layout_marginBottom="4dp" />
+
+                <TextView
+                    android:id="@+id/memberSince"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Thành viên từ: 15/06/2025"
+                    android:textSize="12sp"
+                    android:textColor="#CCCCCC" />
                 <!-- Settings Options -->
                 <LinearLayout
+                    android:id="@+id/notificationOption"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:orientation="horizontal"
@@ -175,6 +303,7 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/darkModeOption"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:orientation="horizontal"
@@ -201,6 +330,7 @@
                 </LinearLayout>
 
                 <LinearLayout
+                    android:id="@+id/appInfoOption"
                     android:layout_width="match_parent"
                     android:layout_height="48dp"
                     android:orientation="horizontal"
@@ -222,6 +352,34 @@
                         android:layout_weight="1"
                         android:text="Thông tin ứng dụng"
                         android:textColor="@android:color/white"
+                        android:textSize="16sp" />
+
+                </LinearLayout>
+
+                <!-- Logout Option -->
+                <LinearLayout
+                    android:id="@+id/logoutOption"
+                    android:layout_width="match_parent"
+                    android:layout_height="48dp"
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical"
+                    android:background="?android:attr/selectableItemBackground"
+                    android:padding="12dp"
+                    android:layout_marginBottom="8dp">
+
+                    <TextView
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="🚪"
+                        android:textSize="20sp"
+                        android:layout_marginEnd="16dp" />
+
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="Đăng xuất"
+                        android:textColor="#FF6B6B"
                         android:textSize="16sp" />
 
                 </LinearLayout>

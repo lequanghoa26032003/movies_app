@@ -40,4 +40,10 @@
     <color name="text_tertiary">#BDBDBD</color>
     <color name="status_blocked">#F44336</color>
     <color name="status_inactive">#FF9800</color>
+
+    <color name="dialog_background">#2C2C2C</color>
+    <color name="dialog_text_primary">#FFFFFF</color>
+    <color name="dialog_text_secondary">#CCCCCC</color>
+
+
 </resources>

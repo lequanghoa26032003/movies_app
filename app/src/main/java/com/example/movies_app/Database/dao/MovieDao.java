@@ -226,4 +226,10 @@ public interface MovieDao {
             "ORDER BY fm.dateAdded DESC")
     List<Movie> getFavoriteMoviesWithDetailsByUser(int userId);
 
+    @Query("SELECT COUNT(*) FROM watch_history WHERE userId = :userId")
+    int getWatchHistoryCountByUser(int userId);
+
+    @Query("SELECT COUNT(*) FROM favorite_movies WHERE userId = :userId")
+    int getFavoriteMoviesCountByUser(int userId);
+
 }

@@ -235,4 +235,9 @@ public interface UserDao {
      */
     @Query("SELECT COUNT(*) FROM users WHERE registrationDate >= date('now', '-60 days') AND registrationDate < date('now', '-30 days')")
     int getNewUsersPreviousMonth();
+
+    @Query("UPDATE users SET email = :email WHERE userId = :userId")
+    int updateUserEmail(int userId, String email);
+
+
 }

@@ -1,15 +1,19 @@
 package com.example.movies_app.Activity;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.PorterDuff;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.widget.ImageView;
+
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatDelegate;
 import androidx.constraintlayout.widget.ConstraintLayout;
 import androidx.core.content.ContextCompat;
-import com.example.movies_app.R;
+
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
+import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
@@ -32,10 +36,9 @@ public abstract class BaseActivity extends AppCompatActivity {
         initBottomNavigation();
         setupBottomNavigation();
         setupCurrentTabFabPosition();
-        highlightCurrentTab(); // ✅ Method này cần được thêm vào
+        highlightCurrentTab();
     }
 
-    // Method abstract để activity con override
     protected abstract int getContentLayoutId();
     protected abstract String getCurrentTab();
 

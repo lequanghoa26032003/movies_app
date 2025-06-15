@@ -2,9 +2,12 @@ package com.example.movies_app.Activity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -38,6 +41,7 @@ import androidx.recyclerview.widget.RecyclerView;
 import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Database.entity.Movie;
+import com.example.movies_app.Database.entity.SearchHistory;
 import com.example.movies_app.Domain.Datum;
 import com.example.movies_app.Domain.ListFilm;
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
@@ -47,16 +51,18 @@ import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
+import java.util.Date;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 public class ExploreActivity extends AppCompatActivity {
 
-    // ✅ THÊM DATABASE VÀ ADAPTERS
     private AppDatabase database;
     private FilmListAdapter trendingAdapter, categoryAdapter;
 
@@ -72,19 +78,26 @@ public class ExploreActivity extends AppCompatActivity {
     private Drawable closeIcon;
     private BottomAppBar bottomAppBar;
 
-    // Content sections
     private LinearLayout trendingSection, categorySection;
 
-    // Bottom Navigation Components
     private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
+
+    private Handler searchHandler;
+    private Runnable searchRunnable;
+    private static final int SEARCH_DELAY = 400;
+    private boolean isSearching = false;
+
+    private boolean isUpdatingText = false;
+
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_explore);
 
-        // ✅ KHỞI TẠO DATABASE
+        searchHandler = new Handler(Looper.getMainLooper());
+
         database = AppDatabase.getInstance(this);
 
         filterManager = new FilterManager(this);
@@ -99,7 +112,6 @@ public class ExploreActivity extends AppCompatActivity {
 
         setFabToExplorePosition();
 
-        // Setup close icon
         closeIcon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_close, null);
         if (closeIcon != null) {
             closeIcon.setBounds(0, 0, closeIcon.getIntrinsicWidth(), closeIcon.getIntrinsicHeight());
@@ -274,57 +286,30 @@ public class ExploreActivity extends AppCompatActivity {
         return listFilm;
     }
 
-    // ✅ CẬP NHẬT SEARCH TỪ DATABASE
-    private void performSearch() {
-        String query = searchEditText.getText().toString().trim();
 
-        if (query.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập từ khóa tìm kiếm", Toast.LENGTH_SHORT).show();
-            return;
-        }
 
-        // Ẩn bàn phím
-        InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
-
-        // Hiển thị kết quả tìm kiếm
-        showSearchResults();
-        searchProgressBar.setVisibility(View.VISIBLE);
-
-        // ✅ TÌM KIẾM TỪ DATABASE
+    private void saveSearchHistory(String query) {
         new Thread(() -> {
             try {
-                // Search trong database
-                List<Movie> searchResults = database.movieDao().searchMovies("%" + query + "%");
+                SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+                int currentUserId = prefs.getInt("user_id", -1);
 
-                runOnUiThread(() -> {
-                    searchProgressBar.setVisibility(View.GONE);
-
-                    if (searchResults != null && !searchResults.isEmpty()) {
-                        ListFilm listFilm = convertMoviesToListFilm(searchResults);
-
-                        resultsCountTxt.setText("🔍 Tìm thấy " + searchResults.size() + " kết quả cho \"" + query + "\"");
-                        adapterSearchResults = new FilmListAdapter(listFilm);
-                        exploreRecyclerView.setAdapter(adapterSearchResults);
-                    } else {
-                        resultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
-                        // Set empty adapter
-                        exploreRecyclerView.setAdapter(new FilmListAdapter(new ListFilm()));
-                    }
-                });
+                if (currentUserId != -1) {
+                    SearchHistory searchHistory = new SearchHistory(
+                            currentUserId,
+                            query,
+                            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())
+                    );
+                    database.movieDao().insertSearchHistory(searchHistory);
+                }
             } catch (Exception e) {
-                Log.e("ExploreActivity", "Error searching movies: " + e.getMessage());
-                runOnUiThread(() -> {
-                    searchProgressBar.setVisibility(View.GONE);
-                    resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
-                });
+                Log.e("ExploreActivity", "Error saving search history: " + e.getMessage());
             }
         }).start();
     }
 
-    // ✅ CẬP NHẬT APPLY FILTERS TỪ DATABASE
+
     private void applyFilters() {
-        // Hiển thị loading
         searchProgressBar.setVisibility(View.VISIBLE);
         showSearchResults();
         resultsCountTxt.setText("🎛️ Đang áp dụng bộ lọc...");
@@ -519,27 +504,29 @@ public class ExploreActivity extends AppCompatActivity {
     }
 
     private void setupSearchListeners() {
-        // Enter key để search
-        searchEditText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
-                    (keyEvent != null && keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
-                performSearch();
-                return true;
-            }
-            return false;
-        });
-
-        // Hiển thị/ẩn icon X khi có text
         searchEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                if (isUpdatingText) {
+                    return;
+                }
+
                 if (s.length() > 0) {
                     showCloseIcon();
+
+                    if (searchRunnable != null) {
+                        searchHandler.removeCallbacks(searchRunnable);
+                    }
+
+                    searchRunnable = () -> performRealtimeSearch(s.toString().trim());
+                    searchHandler.postDelayed(searchRunnable, SEARCH_DELAY);
+
                 } else {
                     hideCloseIcon();
+                    clearSearchResultsOnly();
                 }
             }
 
@@ -547,30 +534,123 @@ public class ExploreActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
-        // Xử lý click vào icon search và close
+        // Touch listener cho icons
         searchEditText.setOnTouchListener((v, event) -> {
             if (event.getAction() != MotionEvent.ACTION_UP) {
                 return false;
             }
 
-            // Click vào icon search (bên trái)
             Drawable drawableLeft = searchEditText.getCompoundDrawables()[0];
             if (drawableLeft != null && event.getRawX() <= (searchEditText.getLeft()
                     + drawableLeft.getBounds().width() + searchEditText.getPaddingStart())) {
-                performSearch();
+                String query = searchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performRealtimeSearch(query);
+                }
                 return true;
             }
 
-            // Click vào icon close (bên phải)
             Drawable drawableRight = searchEditText.getCompoundDrawables()[2];
             if (drawableRight != null && event.getRawX() >= (searchEditText.getRight()
                     - drawableRight.getBounds().width() - searchEditText.getPaddingEnd())) {
-                clearSearch();
+                // ===== SỬ DỤNG METHOD AN TOÀN ĐỂ CLEAR =====
+                clearSearchSafely();
                 return true;
             }
 
             return false;
         });
+
+        // Enter key
+        searchEditText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                    (keyEvent != null && keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                String query = searchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performRealtimeSearch(query);
+                }
+                return true;
+            }
+            return false;
+        });
+    }
+
+    private void clearSearchSafely() {
+        try {
+            // Cancel any pending search
+            if (searchHandler != null && searchRunnable != null) {
+                searchHandler.removeCallbacks(searchRunnable);
+            }
+
+            // Reset search state
+            isSearching = false;
+
+            // ===== SET FLAG ĐỂ TRÁNH TRIGGER TEXTWATCHER =====
+            isUpdatingText = true;
+
+            // Clear search text
+            searchEditText.setText("");
+
+            // Reset flag
+            isUpdatingText = false;
+
+            // Clear UI
+            clearSearchResultsOnly();
+
+            // Hide keyboard and clear focus
+            InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
+            if (imm != null) {
+                imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+            }
+            searchEditText.clearFocus();
+
+        } catch (Exception e) {
+            Log.e("ExploreActivity", "Error in clearSearchSafely: " + e.getMessage());
+            // Reset flag nếu có lỗi
+            isUpdatingText = false;
+        }
+    }
+
+    private void clearSearchResultsOnly() {
+        try {
+            // Cancel any pending search
+            if (searchHandler != null && searchRunnable != null) {
+                searchHandler.removeCallbacks(searchRunnable);
+            }
+
+            // Reset search state
+            isSearching = false;
+
+            // Hide search results container
+            if (searchResultsContainer != null) {
+                searchResultsContainer.setVisibility(View.GONE);
+            }
+
+            if (searchProgressBar != null) {
+                searchProgressBar.setVisibility(View.GONE);
+            }
+
+            // Show main content sections
+            if (trendingSection != null) {
+                trendingSection.setVisibility(View.VISIBLE);
+            }
+
+            if (categorySection != null) {
+                categorySection.setVisibility(View.VISIBLE);
+            }
+
+            // Clear results text
+            if (resultsCountTxt != null) {
+                resultsCountTxt.setText("");
+                resultsCountTxt.setVisibility(View.GONE);
+            }
+
+            // Hide close icon
+            hideCloseIcon();
+
+        } catch (Exception e) {
+            Log.e("ExploreActivity", "Error in clearSearchResultsOnly: " + e.getMessage());
+        }
     }
 
     private void showCloseIcon() {
@@ -810,19 +890,101 @@ public class ExploreActivity extends AppCompatActivity {
     }
 
     private void clearSearch() {
-        searchEditText.setText("");
+        clearSearchSafely();
+    }
+    private void performRealtimeSearch(String query) {
+        if (query.isEmpty()) {
+            clearSearchResultsOnly(); // Không clear text, chỉ clear UI
+            return;
+        }
 
-        // Ẩn kết quả tìm kiếm
-        searchResultsContainer.setVisibility(View.GONE);
+        // Prevent multiple simultaneous searches
+        if (isSearching) {
+            return;
+        }
 
-        // Hiển thị lại trending và categories
-        trendingSection.setVisibility(View.VISIBLE);
-        categorySection.setVisibility(View.VISIBLE);
+        // Cancel previous search
+        if (searchRunnable != null) {
+            searchHandler.removeCallbacks(searchRunnable);
+        }
 
-        // Ẩn bàn phím và xóa focus
+        isSearching = true;
+
+        // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
-        imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
-        searchEditText.clearFocus();
+        if (imm != null) {
+            imm.hideSoftInputFromWindow(searchEditText.getWindowToken(), 0);
+        }
+
+        // Show search results
+        showSearchResults();
+
+        // Show loading for searches with 2+ characters
+        if (query.length() >= 2) {
+            searchProgressBar.setVisibility(View.VISIBLE);
+            resultsCountTxt.setText("🔍 Đang tìm kiếm \"" + query + "\"...");
+        }
+
+        // Search in background thread
+        new Thread(() -> {
+            try {
+                // Add small delay to prevent too frequent searches
+                if (query.length() < 3) {
+                    Thread.sleep(200);
+                }
+
+                List<Movie> searchResults = database.movieDao().searchMovies("%" + query + "%");
+
+                runOnUiThread(() -> {
+                    isSearching = false;
+
+                    if (searchProgressBar != null) {
+                        searchProgressBar.setVisibility(View.GONE);
+                    }
+
+                    if (searchResults != null && !searchResults.isEmpty()) {
+                        ListFilm listFilm = convertMoviesToListFilm(searchResults);
+
+                        if (resultsCountTxt != null) {
+                            resultsCountTxt.setText("🔍 Tìm thấy " + searchResults.size() + " kết quả cho \"" + query + "\"");
+                        }
+
+                        if (exploreRecyclerView != null) {
+                            adapterSearchResults = new FilmListAdapter(listFilm);
+                            exploreRecyclerView.setAdapter(adapterSearchResults);
+                        }
+                    } else {
+                        if (resultsCountTxt != null) {
+                            resultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
+                        }
+
+                        if (exploreRecyclerView != null) {
+                            exploreRecyclerView.setAdapter(new FilmListAdapter(new ListFilm()));
+                        }
+                    }
+                });
+
+                // Save search history
+                if (query.length() >= 3) {
+                    saveSearchHistory(query);
+                }
+
+            } catch (InterruptedException e) {
+                // Search was cancelled
+                runOnUiThread(() -> isSearching = false);
+            } catch (Exception e) {
+                Log.e("ExploreActivity", "Error in realtime search: " + e.getMessage());
+                runOnUiThread(() -> {
+                    isSearching = false;
+                    if (searchProgressBar != null) {
+                        searchProgressBar.setVisibility(View.GONE);
+                    }
+                    if (resultsCountTxt != null) {
+                        resultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
+                    }
+                });
+            }
+        }).start();
     }
 
     private void focusSearchBox() {
@@ -838,4 +1000,23 @@ public class ExploreActivity extends AppCompatActivity {
                 BaseBottomNavigationHelper.SEARCH_POSITION
         );
     }
+
+    protected void onDestroy() {
+        super.onDestroy();
+
+        // ===== CLEAN UP ĐỂ TRÁNH MEMORY LEAK =====
+        try {
+            if (searchHandler != null && searchRunnable != null) {
+                searchHandler.removeCallbacks(searchRunnable);
+            }
+
+            // Reset flags
+            isUpdatingText = false;
+            isSearching = false;
+
+        } catch (Exception e) {
+            Log.e("ExploreActivity", "Error in onDestroy cleanup: " + e.getMessage());
+        }
+    }
+
 }

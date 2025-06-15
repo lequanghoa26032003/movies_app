@@ -2,9 +2,12 @@ package com.example.movies_app.Activity;
 
 import android.content.Context;
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.graphics.PorterDuff;
 import android.graphics.drawable.Drawable;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 import android.text.Editable;
 import android.text.TextWatcher;
 import android.util.Log;
@@ -27,15 +30,19 @@ import androidx.recyclerview.widget.GridLayoutManager;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
-import com.example.movies_app.Adapter.HorizontalGridMovieAdapter; // IMPORT ADAPTER MỚI
+import com.example.movies_app.Adapter.HorizontalGridMovieAdapter;
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Database.entity.Movie;
+import com.example.movies_app.Database.entity.SearchHistory;
 import com.example.movies_app.R;
 import com.google.android.material.bottomappbar.BottomAppBar;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.List;
+import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -64,11 +71,14 @@ public class MainActivity extends AppCompatActivity {
     private BottomAppBar bottomAppBar;
     private ImageView btnMain, btnHistory, btnFavorites, btnSearch, btnProfile;
     private FloatingActionButton fabHome;
-
+    private Handler searchHandler;
+    private Runnable searchRunnable;
+    private static final int SEARCH_DELAY = 300;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+        searchHandler = new Handler(Looper.getMainLooper());
 
         initializeDatabase();
         initViews();
@@ -77,7 +87,6 @@ public class MainActivity extends AppCompatActivity {
         loadMoviesFromDatabase();
         highlightHomeTab();
 
-        // Setup close icon
         closeIcon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_close, null);
         if (closeIcon != null) {
             closeIcon.setBounds(0, 0, closeIcon.getIntrinsicWidth(), closeIcon.getIntrinsicHeight());
@@ -238,25 +247,32 @@ public class MainActivity extends AppCompatActivity {
     }
 
     private void setupSearchListeners() {
-        homeSearchEditText.setOnEditorActionListener((textView, actionId, keyEvent) -> {
-            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
-                    (keyEvent != null && keyEvent.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
-                performSearch();
-                return true;
-            }
-            return false;
-        });
+        // ===== THAY THẾ PHẦN setupSearchListeners CŨ =====
 
+        // Realtime search với TextWatcher
         homeSearchEditText.addTextChangedListener(new TextWatcher() {
             @Override
             public void beforeTextChanged(CharSequence s, int start, int count, int after) {}
 
             @Override
             public void onTextChanged(CharSequence s, int start, int before, int count) {
+                // Hiển thị/ẩn close icon
                 if (s.length() > 0) {
                     showCloseIcon();
+
+                    // Cancel previous search
+                    if (searchRunnable != null) {
+                        searchHandler.removeCallbacks(searchRunnable);
+                    }
+
+                    // Schedule new search with delay
+                    searchRunnable = () -> performRealtimeSearch(s.toString().trim());
+                    searchHandler.postDelayed(searchRunnable, SEARCH_DELAY);
+
                 } else {
                     hideCloseIcon();
+                    // Clear search when text is empty
+                    clearSearchResults();
                 }
             }
 
@@ -264,6 +280,7 @@ public class MainActivity extends AppCompatActivity {
             public void afterTextChanged(Editable s) {}
         });
 
+        // Giữ nguyên touch listener cho icon clicks
         homeSearchEditText.setOnTouchListener((v, event) -> {
             if (event.getAction() != MotionEvent.ACTION_UP) {
                 return false;
@@ -272,7 +289,11 @@ public class MainActivity extends AppCompatActivity {
             Drawable drawableLeft = homeSearchEditText.getCompoundDrawables()[0];
             if (drawableLeft != null && event.getRawX() <= (homeSearchEditText.getLeft()
                     + drawableLeft.getBounds().width() + homeSearchEditText.getPaddingStart())) {
-                performSearch();
+                // Force search immediately when clicking search icon
+                String query = homeSearchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performRealtimeSearch(query);
+                }
                 return true;
             }
 
@@ -283,6 +304,19 @@ public class MainActivity extends AppCompatActivity {
                 return true;
             }
 
+            return false;
+        });
+
+        // Enter key để force search ngay lập tức
+        homeSearchEditText.setOnEditorActionListener((v, actionId, event) -> {
+            if (actionId == EditorInfo.IME_ACTION_SEARCH ||
+                    (event != null && event.getKeyCode() == KeyEvent.KEYCODE_ENTER)) {
+                String query = homeSearchEditText.getText().toString().trim();
+                if (!query.isEmpty()) {
+                    performRealtimeSearch(query);
+                }
+                return true;
+            }
             return false;
         });
     }
@@ -301,50 +335,91 @@ public class MainActivity extends AppCompatActivity {
         );
     }
 
-    private void performSearch() {
-        String query = homeSearchEditText.getText().toString().trim();
-
+    private void performRealtimeSearch(String query) {
         if (query.isEmpty()) {
-            Toast.makeText(this, "Vui lòng nhập từ khóa tìm kiếm", Toast.LENGTH_SHORT).show();
+            clearSearchResults();
             return;
         }
 
+        // Cancel previous search nếu có
+        if (searchRunnable != null) {
+            searchHandler.removeCallbacks(searchRunnable);
+        }
+
+        // Hide keyboard
         InputMethodManager imm = (InputMethodManager) getSystemService(Context.INPUT_METHOD_SERVICE);
         imm.hideSoftInputFromWindow(homeSearchEditText.getWindowToken(), 0);
 
+        // Show search results container
         showSearchResults();
-        homeSearchProgressBar.setVisibility(View.VISIBLE);
 
-        // Tìm kiếm trong database
+        // Show loading for longer searches
+        if (query.length() >= 2) {
+            homeSearchProgressBar.setVisibility(View.VISIBLE);
+            homeResultsCountTxt.setText("🔍 Đang tìm kiếm \"" + query + "\"...");
+        }
+
+        // Perform search in background
         executorService.execute(() -> {
             try {
                 List<Movie> searchResults = database.movieDao().searchMovies("%" + query + "%");
 
                 runOnUiThread(() -> {
+                    homeSearchProgressBar.setVisibility(View.GONE);
+
                     if (searchResults != null && !searchResults.isEmpty()) {
                         int resultCount = searchResults.size();
                         homeResultsCountTxt.setText("🔍 Tìm thấy " + resultCount + " kết quả cho \"" + query + "\"");
 
-                        // SỬ DỤNG ADAPTER MỚI CHO SEARCH RESULTS
                         adapterSearchResults = new HorizontalGridMovieAdapter(MainActivity.this, searchResults);
                         homeSearchRecyclerView.setAdapter(adapterSearchResults);
                     } else {
                         homeResultsCountTxt.setText("❌ Không tìm thấy kết quả cho \"" + query + "\"");
+                        // Clear adapter
+                        homeSearchRecyclerView.setAdapter(null);
                     }
-
-                    homeSearchProgressBar.setVisibility(View.GONE);
                 });
 
             } catch (Exception e) {
-                Log.e("MainActivity", "Error searching movies: " + e.getMessage());
+                Log.e("MainActivity", "Error in realtime search: " + e.getMessage());
                 runOnUiThread(() -> {
                     homeSearchProgressBar.setVisibility(View.GONE);
                     homeResultsCountTxt.setText("⚠️ Đã xảy ra lỗi khi tìm kiếm");
                 });
             }
         });
+
+        // Save search history for queries longer than 2 characters
+        if (query.length() >= 3) {
+            saveSearchHistory(query);
+        }
+    }
+    private void clearSearchResults() {
+        homeSearchResultsContainer.setVisibility(View.GONE);
+        homeMainContent.setVisibility(View.VISIBLE);
+        homeSearchRecyclerView.setAdapter(null);
     }
 
+    private void saveSearchHistory(String query) {
+        // Save search history in background
+        executorService.execute(() -> {
+            try {
+                SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+                int currentUserId = prefs.getInt("user_id", -1);
+
+                if (currentUserId != -1) {
+                    SearchHistory searchHistory = new SearchHistory(
+                            currentUserId,
+                            query,
+                            new SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(new Date())
+                    );
+                    database.movieDao().insertSearchHistory(searchHistory);
+                }
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error saving search history: " + e.getMessage());
+            }
+        });
+    }
     private void showSearchResults() {
         homeMainContent.setVisibility(View.GONE);
         homeSearchResultsContainer.setVisibility(View.VISIBLE);
@@ -376,6 +451,9 @@ public class MainActivity extends AppCompatActivity {
         super.onDestroy();
         if (executorService != null) {
             executorService.shutdown();
+        }
+        if (searchHandler != null && searchRunnable != null) {
+            searchHandler.removeCallbacks(searchRunnable);
         }
     }
 }

@@ -25,4 +25,14 @@
         <item name="cornerSize">8dp</item>
     </style>
 
+    <style name="DarkDialogTheme" parent="Theme.AppCompat.Dialog">
+        <item name="android:windowBackground">@drawable/dialog_background</item>
+        <item name="android:textColor">@android:color/white</item>
+        <item name="android:textColorPrimary">@android:color/white</item>
+        <item name="android:textColorSecondary">@color/dialog_text_secondary</item>
+        <item name="colorAccent">@color/selected_tab_color</item>
+    </style>
+
+
+
 </resources>
