@@ -195,8 +195,8 @@ public class FavoriteActivity extends AppCompatActivity implements FavoriteMovie
 
     @Override
     public void onFavoriteMovieClick(Movie movie) {
-        Intent i = new Intent(this, DetailActivity.class);
-        i.putExtra("movieId", movie.getId());
+        Intent i = new Intent(FavoriteActivity.this, DetailActivity.class);
+        i.putExtra("id", movie.getId());
         startActivity(i);
     }
 
@@ -206,7 +206,10 @@ public class FavoriteActivity extends AppCompatActivity implements FavoriteMovie
         int userId = prefs.getInt("user_id", -1);
         executorService.execute(() -> {
             movieDao.deleteFavoriteMovieByIds(movie.getId(), userId);
-            runOnUiThread(this::loadFavoriteMovies);
+            runOnUiThread(() -> {
+                Toast.makeText(FavoriteActivity.this, "Đã xóa khỏi yêu thích", Toast.LENGTH_SHORT).show();
+                loadFavoriteMovies();
+            });
         });
     }
 

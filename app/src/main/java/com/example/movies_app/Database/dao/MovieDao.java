@@ -17,7 +17,7 @@ import java.util.List;
 
 @Dao
 public interface MovieDao {
-    // Các phương thức cũ...
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertMovie(Movie movie);
 
@@ -225,4 +225,5 @@ public interface MovieDao {
             "WHERE fm.userId = :userId " +
             "ORDER BY fm.dateAdded DESC")
     List<Movie> getFavoriteMoviesWithDetailsByUser(int userId);
+
 }

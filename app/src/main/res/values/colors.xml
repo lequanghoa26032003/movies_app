@@ -26,6 +26,7 @@
     <color name="growth_positive">#4CAF50</color>
     <color name="growth_negative">#F44336</color>
     <color name="growth_neutral">#757575</color>
+    <color name="amber_500">#FFC107</color>
     <!-- Background colors -->
     <color name="background_light">#FAFAFA</color>
     <color name="surface_light">#FFFFFF</color>
