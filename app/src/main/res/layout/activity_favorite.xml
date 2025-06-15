@@ -73,6 +73,17 @@
                 android:lineSpacingExtra="4dp" />
 
         </LinearLayout>
+        <TextView
+            android:id="@+id/emptyTextView"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_centerInParent="true"
+            android:gravity="center"
+            android:padding="32dp"
+            android:text="Bạn chưa có phim yêu thích nào"
+            android:textColor="@android:color/white"
+            android:textSize="16sp"
+            android:visibility="gone" />
 
     </LinearLayout>
 

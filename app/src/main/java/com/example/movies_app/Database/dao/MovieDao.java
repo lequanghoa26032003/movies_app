@@ -209,4 +209,20 @@ public interface MovieDao {
 
     @Query("SELECT genres FROM movies WHERE genres IS NOT NULL AND genres != '' GROUP BY genres")
     List<String> getUniqueGenres();
+    @Query("SELECT m.* FROM movies m " +
+            "INNER JOIN favorite_movies f ON m.id = f.movieId " +
+            "WHERE f.userId = :userId " +
+            "ORDER BY f.dateAdded DESC")
+    List<Movie> getFavoriteMoviesWithDetails(int userId);
+
+    @Query("DELETE FROM favorite_movies WHERE movieId = :movieId AND userId = :userId")
+    void removeFavoriteMovie(int movieId, int userId);
+
+    @Query("SELECT COUNT(*) > 0 FROM favorite_movies WHERE movieId = :movieId AND userId = :userId")
+    boolean isFavoriteMovie(int movieId, int userId);
+    @Query("SELECT m.* FROM movies m " +
+            "INNER JOIN favorite_movies fm ON m.id = fm.movieId " +
+            "WHERE fm.userId = :userId " +
+            "ORDER BY fm.dateAdded DESC")
+    List<Movie> getFavoriteMoviesWithDetailsByUser(int userId);
 }

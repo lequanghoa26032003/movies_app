@@ -1,6 +1,7 @@
 package com.example.movies_app.Activity;
 
 import android.content.Intent;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -12,6 +13,7 @@ import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.AppCompatButton;
+import androidx.core.content.ContextCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
@@ -31,6 +33,7 @@ import com.example.movies_app.Domain.TMDbVideo;
 import com.example.movies_app.Domain.TMDbVideoResponse;
 import com.example.movies_app.Helper.TMDbApiService;
 import com.example.movies_app.R;
+import com.example.movies_app.service.FavoriteService;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
@@ -66,7 +69,10 @@ public class DetailActivity extends AppCompatActivity {
     private AppDatabase database;
     private TMDbApiService tmdbApiService;
     private ExecutorService executorService;
-
+    private ImageView btnFavorite;
+    private boolean isFavorite = false;
+    private int currentUserId = -1;
+    private FavoriteService favoriteService;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -76,14 +82,15 @@ public class DetailActivity extends AppCompatActivity {
         tmdbApiService = new TMDbApiService(this);
         database = AppDatabase.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
+        favoriteService = FavoriteService.getInstance(this);
 
+        getCurrentUser();
         // Kiểm tra dữ liệu từ Intent
         checkIntentData();
 
         initView();
         setupTabLayout();
 
-        // Load dữ liệu dựa trên source
         if (useLocalData && localMovie != null) {
             loadLocalMovieData();
         } else if (useTmdbData && tmdbMovie != null) {
@@ -92,7 +99,11 @@ public class DetailActivity extends AppCompatActivity {
             loadMovieFromDatabase();
         }
     }
-
+    private void getCurrentUser() {
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        currentUserId = prefs.getInt("user_id", -1);
+        Log.d("DetailActivity", "Current user ID: " + currentUserId);
+    }
     private void checkIntentData() {
         Intent intent = getIntent();
 
@@ -202,6 +213,8 @@ public class DetailActivity extends AppCompatActivity {
 
         // Cập nhật RecyclerView cho tab "Liên quan"
         setupImagesList(movie.getPoster(), movie.getImages());
+
+        checkFavoriteStatus();
     }
 
     private void loadLocalMovieData() {
@@ -273,6 +286,7 @@ public class DetailActivity extends AppCompatActivity {
 
         // Cập nhật view count
         updateViewCount();
+        checkFavoriteStatus();
     }
 
     private void loadTmdbData() {
@@ -307,6 +321,7 @@ public class DetailActivity extends AppCompatActivity {
 
         // Setup images
         setupImagesList(tmdbMovie.getFullPosterUrl(), tmdbMovie.getFullBackdropUrl());
+        checkFavoriteStatus();
     }
 
     private void setupImagesList(String poster, String backdrop) {
@@ -417,12 +432,72 @@ public class DetailActivity extends AppCompatActivity {
         // Khởi tạo RecyclerView cho tab "Liên quan"
         recyclerView = findViewById(R.id.recyclerView);
         recyclerView.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
+        btnFavorite = findViewById(R.id.btnFavorite);
+        btnFavorite.setOnClickListener(v -> toggleFavorite());
 
         // Thêm sự kiện click cho nút xem phim
         AppCompatButton btnWatchMovie = findViewById(R.id.btnWatchMovie);
         btnWatchMovie.setOnClickListener(v -> handleWatchMovie());
     }
+    private void checkFavoriteStatus() {
+        if (currentUserId == -1) {
+            btnFavorite.setVisibility(View.GONE);
+            return;
+        }
 
+        int movieId = getCurrentMovieId();
+        if (movieId <= 0) return;
+
+        favoriteService.checkFavoriteStatus(currentUserId, movieId, new FavoriteService.FavoriteCheckCallback() {
+            @Override
+            public void onResult(boolean isFavorite) {
+                DetailActivity.this.isFavorite = isFavorite;
+                updateFavoriteButtonUI();
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e("DetailActivity", "Error checking favorite status: " + error);
+            }
+        });
+    }
+    private void updateFavoriteButtonUI() {
+        if (isFavorite) {
+            btnFavorite.setImageResource(R.drawable.ic_favorite_filled);
+            btnFavorite.setColorFilter(ContextCompat.getColor(this, android.R.color.holo_red_light));
+        } else {
+            btnFavorite.setImageResource(R.drawable.ic_favorite_border);
+            btnFavorite.setColorFilter(ContextCompat.getColor(this, android.R.color.white));
+        }
+    }
+
+    // Method để toggle trạng thái yêu thích
+    private void toggleFavorite() {
+        if (currentUserId == -1) {
+            Toast.makeText(this, "Vui lòng đăng nhập để sử dụng tính năng này", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        int movieId = getCurrentMovieId();
+        if (movieId <= 0) {
+            Toast.makeText(this, "Lỗi: Không thể xác định phim", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        favoriteService.toggleFavorite(currentUserId, movieId, new FavoriteService.FavoriteCallback() {
+            @Override
+            public void onSuccess(String message) {
+                Toast.makeText(DetailActivity.this, message, Toast.LENGTH_SHORT).show();
+                // Refresh trạng thái
+                checkFavoriteStatus();
+            }
+
+            @Override
+            public void onError(String error) {
+                Toast.makeText(DetailActivity.this, error, Toast.LENGTH_SHORT).show();
+            }
+        });
+    }
     // ============ PHẦN MỚI: XỬ LÝ XEM PHIM TỪ DATABASE ============
     private void handleWatchMovie() {
         Log.d("DetailActivity", "🎬 Handle watch movie clicked");
@@ -671,6 +746,7 @@ public class DetailActivity extends AppCompatActivity {
         if (executorService != null && !executorService.isShutdown()) {
             executorService.shutdown();
         }
+
         if (mRequestQueue != null) {
             mRequestQueue.cancelAll(this);
         }

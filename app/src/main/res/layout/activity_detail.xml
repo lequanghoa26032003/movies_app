@@ -76,13 +76,17 @@
                     app:layout_constraintTop_toTopOf="parent"
                     app:tint="@android:color/white" />
 
+                <!-- ✅ CẬP NHẬT: Đổi id thành btnFavorite và thêm clickable -->
                 <ImageView
-                    android:id="@+id/imageView10"
+                    android:id="@+id/btnFavorite"
                     android:layout_width="35dp"
                     android:layout_height="35dp"
                     android:background="@drawable/bg_circle_dark"
                     android:padding="8dp"
-                    android:src="@drawable/fav"
+                    android:src="@drawable/ic_favorite_border"
+                    android:clickable="true"
+                    android:focusable="true"
+                    android:contentDescription="Thêm vào yêu thích"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintTop_toTopOf="parent"
                     app:tint="@android:color/white" />
@@ -236,7 +240,7 @@
                 app:layout_constraintStart_toStartOf="parent"
                 app:layout_constraintEnd_toEndOf="parent" />
 
-            <!-- Ẩn các container này và chuyển vào fragment của viewpager -->
+            <!-- Các container khác giữ nguyên như cũ -->
             <LinearLayout
                 android:id="@+id/summeryContainer"
                 android:layout_width="match_parent"
@@ -306,7 +310,7 @@
                     android:textColor="@android:color/white" />
             </LinearLayout>
 
-            <!-- RecyclerView (ẩn và chuyển vào fragment) -->
+            <!-- RecyclerView -->
             <androidx.recyclerview.widget.RecyclerView
                 android:id="@+id/recyclerView"
                 android:layout_width="match_parent"
