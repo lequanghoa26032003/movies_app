@@ -126,69 +126,8 @@ public class DetailActivity extends AppCompatActivity {
         idFilm = intent.getIntExtra("id", 0);
         Log.d("DetailActivity", "Movie ID: " + idFilm);
     }
-    private void startWatchingMovie() {
-        // Lưu lịch sử xem với position = 0 (bắt đầu xem)
-        if (localMovie != null) {
-            watchHistoryService.saveWatchHistory(localMovie.getId(), 0, new WatchHistoryService.WatchHistoryOperationCallback() {
-                @Override
-                public void onSuccess(String message) {
-                    Log.d("DetailActivity", "Watch history saved: " + message);
-                }
 
-                @Override
-                public void onError(String error) {
-                    Log.e("DetailActivity", "Error saving watch history: " + error);
-                }
-            });
-        }
-    }
-    private void updateWatchPosition(long currentPosition) {
-        if (localMovie != null && currentPosition > 0) {
-            watchHistoryService.saveWatchHistory(localMovie.getId(), currentPosition, null);
-        }
-    }
 
-    // Khi load phim, lấy vị trí xem gần nhất:
-    private void loadLastWatchPosition() {
-        if (localMovie != null) {
-            watchHistoryService.getLastWatchPosition(localMovie.getId(), new WatchHistoryService.LastPositionCallback() {
-                @Override
-                public void onResult(long position) {
-                    if (position > 0) {
-                        // Hiển thị dialog hỏi có muốn tiếp tục từ vị trí cũ không
-                        runOnUiThread(() -> {
-                            showResumeDialog(position);
-                        });
-                    }
-                }
-            });
-        }
-    }
-
-    private void showResumeDialog(long position) {
-        new androidx.appcompat.app.AlertDialog.Builder(this)
-                .setTitle("Tiếp tục xem")
-                .setMessage("Bạn có muốn tiếp tục xem từ vị trí đã dừng lại không?")
-                .setPositiveButton("Tiếp tục", (dialog, which) -> {
-                    seekToPosition(position);
-                })
-                .setNegativeButton("Xem từ đầu", (dialog, which) -> {
-                    seekToPosition(0);
-                })
-                .show();
-    }
-    private void seekToPosition(long position) {
-        // Khởi tạo Intent như processVideoUrl
-        int movieId = getCurrentMovieId();
-        String movieTitle = getCurrentMovieTitle();
-        Intent intent = new Intent(this, PlayerActivity.class);
-        intent.putExtra("videoUrl", currentMovieDetail != null
-                ? currentMovieDetail.getVideoUrl()
-                : ""); // URL hiện tại
-        intent.putExtra("resumePosition", position);
-        intent.putExtra("title", movieTitle);
-        startActivity(intent);
-    }
     private void loadMovieFromDatabase() {
         if (idFilm <= 0) {
             Log.e("DetailActivity", "Invalid movie ID: " + idFilm);
@@ -578,16 +517,41 @@ public class DetailActivity extends AppCompatActivity {
             return;
         }
 
-        // ✅ SỬA ĐỔI CHÍNH: Lấy video từ database thay vì TMDb API
-        loadVideoFromDatabase(movieId, movieTitle);
+        // Kiểm tra lịch sử xem trước khi phát
+        loadLastWatchPosition(movieId, movieTitle);
+    }
+    private void loadLastWatchPosition(int movieId, String movieTitle) {
+        if (currentUserId == -1) {
+            // Nếu chưa đăng nhập, phát từ đầu
+            loadVideoFromDatabase(movieId, movieTitle);
+            return;
+        }
+
+        watchHistoryService.getLastWatchPosition(movieId, new WatchHistoryService.LastPositionCallback() {
+            @Override
+            public void onResult(long position) {
+                runOnUiThread(() -> {
+                    if (position > 0) {
+                        // Hiển thị dialog hỏi có muốn tiếp tục từ vị trí cũ không
+                        showResumeDialog(position, movieId, movieTitle);
+                    } else {
+                        // Phát từ đầu
+                        loadVideoFromDatabase(movieId, movieTitle);
+                    }
+                });
+            }
+        });
     }
 
     private void loadVideoFromDatabase(int movieId, String movieTitle) {
+        loadVideoFromDatabase(movieId, movieTitle, 0); // position = 0
+    }
+    private void loadVideoFromDatabase(int movieId, String movieTitle, long resumePosition) {
         Log.d("DetailActivity", "🎬 Loading video from database for movieId: " + movieId);
 
         // Nếu đã có currentMovieDetail, dùng luôn
         if (currentMovieDetail != null) {
-            processVideoUrl(currentMovieDetail.getVideoUrl(), movieTitle);
+            processVideoUrl(currentMovieDetail.getVideoUrl(), movieTitle, resumePosition);
             return;
         }
 
@@ -600,7 +564,7 @@ public class DetailActivity extends AppCompatActivity {
                     progressBar.setVisibility(View.GONE);
 
                     if (movieDetail != null && movieDetail.getVideoUrl() != null && !movieDetail.getVideoUrl().isEmpty()) {
-                        processVideoUrl(movieDetail.getVideoUrl(), movieTitle);
+                        processVideoUrl(movieDetail.getVideoUrl(), movieTitle, resumePosition);
                     } else {
                         // Fallback: Thử TMDb API nếu không có video trong database
                         Log.w("DetailActivity", "No video URL in database, falling back to TMDb API");
@@ -619,6 +583,10 @@ public class DetailActivity extends AppCompatActivity {
     }
 
     private void processVideoUrl(String videoUrl, String movieTitle) {
+        processVideoUrl(videoUrl, movieTitle, 0); // position = 0 (từ đầu)
+    }
+
+    private void processVideoUrl(String videoUrl, String movieTitle, long resumePosition) {
         Log.d("DetailActivity", "🎬 Processing video URL: " + videoUrl);
 
         if (videoUrl == null || videoUrl.isEmpty()) {
@@ -626,9 +594,13 @@ public class DetailActivity extends AppCompatActivity {
             return;
         }
 
+        int movieId = getCurrentMovieId();
+
         // Xử lý URL và phát video
         Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
         intent.putExtra("title", movieTitle);
+        intent.putExtra("movieId", movieId); // THÊM movieId
+        intent.putExtra("resumePosition", resumePosition); // THÊM resumePosition
 
         // Kiểm tra loại URL
         if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
@@ -650,6 +622,93 @@ public class DetailActivity extends AppCompatActivity {
 
         startActivity(intent);
         Toast.makeText(this, "Đang phát phim: " + movieTitle, Toast.LENGTH_SHORT).show();
+    }
+    private void startVideoWithPosition(int movieId, String movieTitle, long position) {
+        loadVideoFromDatabase(movieId, movieTitle, position);
+    }
+    private void checkAndOfferResume(String videoUrl, String movieTitle) {
+        int movieId = getCurrentMovieId();
+        if (currentUserId != -1 && movieId > 0) {
+            watchHistoryService.getLastWatchPosition(movieId, new WatchHistoryService.LastPositionCallback() {
+                @Override
+                public void onResult(long position) {
+                    runOnUiThread(() -> {
+                        if (position > 0 && position != -1) { // -1 means completed
+                            showResumeDialog(position, movieId, movieTitle); // SỬA THỨ TỰ THAM SỐ
+                        } else {
+                            startVideoPlayer(videoUrl, movieTitle, movieId, 0);
+                        }
+                    });
+                }
+            });
+        } else {
+            startVideoPlayer(videoUrl, movieTitle, movieId, 0);
+        }
+    }
+
+    private void showResumeDialog(long position, int movieId, String movieTitle) { // SỬA SIGNATURE
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Tiếp tục xem")
+                .setMessage("Bạn có muốn tiếp tục xem từ vị trí đã dừng lại không?\n(Đã xem: " + formatTime(position) + ")")
+                .setPositiveButton("Tiếp tục", (dialog, which) -> {
+                    startVideoPlayerWithPosition(movieId, movieTitle, position);
+                })
+                .setNegativeButton("Xem từ đầu", (dialog, which) -> {
+                    startVideoPlayerWithPosition(movieId, movieTitle, 0);
+                })
+                .setCancelable(false)
+                .show();
+    }
+    private void startVideoPlayerWithPosition(int movieId, String movieTitle, long resumePosition) {
+        // Lấy video URL từ database
+        if (currentMovieDetail != null) {
+            startVideoPlayer(currentMovieDetail.getVideoUrl(), movieTitle, movieId, resumePosition);
+        } else {
+            executorService.execute(() -> {
+                try {
+                    MovieDetail movieDetail = database.movieDao().getMovieDetailById(movieId);
+                    runOnUiThread(() -> {
+                        if (movieDetail != null && movieDetail.getVideoUrl() != null) {
+                            startVideoPlayer(movieDetail.getVideoUrl(), movieTitle, movieId, resumePosition);
+                        } else {
+                            Toast.makeText(this, "Không tìm thấy URL video", Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } catch (Exception e) {
+                    runOnUiThread(() -> {
+                        Toast.makeText(this, "Lỗi tải video: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
+        }
+    }
+    private void startVideoPlayer(String videoUrl, String movieTitle, int movieId, long resumePosition) {
+        Intent intent = new Intent(DetailActivity.this, PlayerActivity.class);
+        intent.putExtra("title", movieTitle);
+        intent.putExtra("movieId", movieId);
+        intent.putExtra("resumePosition", resumePosition);
+
+        // Kiểm tra loại URL
+        if (videoUrl.contains("youtube.com") || videoUrl.contains("youtu.be")) {
+            String youtubeKey = extractYouTubeKey(videoUrl);
+            if (youtubeKey != null) {
+                intent.putExtra("youtubeKey", youtubeKey);
+                Log.d("DetailActivity", "🎬 Playing YouTube video: " + youtubeKey);
+            }
+            intent.putExtra("videoUrl", videoUrl);
+        } else {
+            intent.putExtra("videoUrl", videoUrl);
+            Log.d("DetailActivity", "🎬 Playing direct video URL: " + videoUrl);
+        }
+
+        startActivity(intent);
+        Toast.makeText(this, "Đang phát phim: " + movieTitle, Toast.LENGTH_SHORT).show();
+    }
+    private String formatTime(long milliseconds) {
+        long seconds = milliseconds / 1000;
+        long minutes = seconds / 60;
+        seconds = seconds % 60;
+        return String.format("%02d:%02d", minutes, seconds);
     }
 
     private String extractYouTubeKey(String url) {

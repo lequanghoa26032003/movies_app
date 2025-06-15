@@ -11,8 +11,10 @@ import android.util.Log;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.ArrayAdapter;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
@@ -21,6 +23,7 @@ import android.widget.LinearLayout;
 import android.widget.ProgressBar;
 import android.widget.RadioButton;
 import android.widget.RadioGroup;
+import android.widget.Spinner;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -46,6 +49,7 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -331,43 +335,62 @@ public class ExploreActivity extends AppCompatActivity {
                 List<Movie> filteredMovies = new ArrayList<>();
 
                 Set<String> selectedGenres = filterManager.getSelectedGenres();
+                int yearFrom = filterManager.getYearFrom();
+                int yearTo = filterManager.getYearTo();
                 String sortBy = filterManager.getSortBy();
 
-                // ✅ CẬP NHẬT LOGIC LỌC THEO GENRES
+                Log.d("ExploreActivity", "Applying filters - Genres: " + selectedGenres.size() +
+                        ", Year range: " + yearFrom + "-" + yearTo + ", Sort: " + sortBy);
+
+                // ✅ LỌC THEO GENRES VÀ YEAR
                 for (Movie movie : allMovies) {
-                    if (selectedGenres.isEmpty()) {
-                        // Không có filter genres, lấy tất cả
-                        filteredMovies.add(movie);
-                    } else {
-                        // Kiểm tra xem movie có chứa genre được chọn không
+                    boolean includeMovie = true;
+
+                    // Filter by genres
+                    if (!selectedGenres.isEmpty()) {
+                        boolean hasMatchingGenre = false;
                         if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
-                            boolean hasMatchingGenre = false;
-
-                            // Split genres của movie
                             String[] movieGenres = movie.getGenres().split(",");
-
                             for (String movieGenre : movieGenres) {
                                 String cleanMovieGenre = movieGenre.trim();
-
-                                // Kiểm tra với selected genres
                                 for (String selectedGenre : selectedGenres) {
                                     if (cleanMovieGenre.equalsIgnoreCase(selectedGenre)) {
                                         hasMatchingGenre = true;
                                         break;
                                     }
                                 }
-
                                 if (hasMatchingGenre) break;
                             }
-
-                            if (hasMatchingGenre) {
-                                filteredMovies.add(movie);
-                            }
                         }
+                        if (!hasMatchingGenre) {
+                            includeMovie = false;
+                        }
+                    }
+
+                    // Filter by year range
+                    if (includeMovie && (yearFrom > 1970 || yearTo < Calendar.getInstance().get(Calendar.YEAR))) {
+                        if (movie.getYear() != null && !movie.getYear().isEmpty()) {
+                            try {
+                                int movieYear = Integer.parseInt(movie.getYear());
+                                if (movieYear < yearFrom || movieYear > yearTo) {
+                                    includeMovie = false;
+                                }
+                            } catch (NumberFormatException e) {
+                                // Skip movies with invalid year format
+                                includeMovie = false;
+                            }
+                        } else {
+                            // Skip movies without year info when year filter is applied
+                            includeMovie = false;
+                        }
+                    }
+
+                    if (includeMovie) {
+                        filteredMovies.add(movie);
                     }
                 }
 
-                // Sort theo criteria (giữ nguyên logic cũ)
+                // Sort theo criteria
                 if ("imdb_rating".equals(sortBy)) {
                     filteredMovies.sort((m1, m2) -> {
                         try {
@@ -397,12 +420,26 @@ public class ExploreActivity extends AppCompatActivity {
 
                     if (!filteredMovies.isEmpty()) {
                         ListFilm listFilm = convertMoviesToListFilm(filteredMovies);
-                        resultsCountTxt.setText("🎯 Tìm thấy " + filteredMovies.size() + " kết quả phù hợp");
+
+                        // Tạo filter summary
+                        StringBuilder filterSummary = new StringBuilder("🎯 ");
+                        filterSummary.append(filteredMovies.size()).append(" kết quả");
+
+                        if (!selectedGenres.isEmpty()) {
+                            filterSummary.append(" - Thể loại: ").append(selectedGenres.size());
+                        }
+                        if (yearFrom > 1970 || yearTo < Calendar.getInstance().get(Calendar.YEAR)) {
+                            filterSummary.append(" - Năm: ").append(yearFrom).append("-").append(yearTo);
+                        }
+
+                        resultsCountTxt.setText(filterSummary.toString());
                         adapterSearchResults = new FilmListAdapter(listFilm);
                         exploreRecyclerView.setAdapter(adapterSearchResults);
                     } else {
                         resultsCountTxt.setText("❌ Không tìm thấy kết quả phù hợp với bộ lọc");
-                        exploreRecyclerView.setAdapter(new FilmListAdapter(new ListFilm()));
+                        ListFilm emptyListFilm = new ListFilm();
+                        emptyListFilm.setData(new ArrayList<>()); // đảm bảo không null!
+                        exploreRecyclerView.setAdapter(new FilmListAdapter(emptyListFilm));
                     }
                 });
 
@@ -416,7 +453,6 @@ public class ExploreActivity extends AppCompatActivity {
         }).start();
     }
 
-    // ✅ GIỮ NGUYÊN CÁC METHODS KHÁC (không thay đổi)
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
             BaseBottomNavigationHelper.setFabPosition(
@@ -567,15 +603,21 @@ public class ExploreActivity extends AppCompatActivity {
             filterManager = new FilterManager(this);
         }
 
-        // ✅ LẤY GENRES TỪ DATABASE THAY VÌ HARD-CODE
+        // ========== THIẾT LẬP YEAR SPINNERS ==========
+        Spinner yearFromSpinner = dialogView.findViewById(R.id.yearFromSpinner);
+        Spinner yearToSpinner = dialogView.findViewById(R.id.yearToSpinner);
+
+        setupYearSpinners(yearFromSpinner, yearToSpinner);
+
+        // ========== THIẾT LẬP GENRES ==========
         LinearLayout genreContainer = dialogView.findViewById(R.id.genreCheckboxContainer);
         List<CheckBox> genreCheckBoxes = new ArrayList<>();
         Set<String> selectedGenres = filterManager.getSelectedGenres();
 
-        // ✅ LOAD GENRES TỪ DATABASE
+        // Load genres từ database
         loadGenresFromDatabase(genreContainer, genreCheckBoxes, selectedGenres);
 
-        // Thiết lập radio buttons sắp xếp (giữ nguyên)
+        // ========== THIẾT LẬP SORT RADIO BUTTONS ==========
         RadioGroup sortGroup = dialogView.findViewById(R.id.sortByRadioGroup);
         String currentSort = filterManager.getSortBy();
         if ("title".equals(currentSort)) {
@@ -586,7 +628,7 @@ public class ExploreActivity extends AppCompatActivity {
             ((RadioButton) dialogView.findViewById(R.id.sortByYear)).setChecked(true);
         }
 
-        // Thiết lập nút áp dụng
+        // ========== THIẾT LẬP BUTTONS ==========
         Button applyBtn = dialogView.findViewById(R.id.applyFilterBtn);
         final AlertDialog dialog = builder.create();
 
@@ -599,6 +641,20 @@ public class ExploreActivity extends AppCompatActivity {
                 }
             }
             filterManager.saveGenres(genresToSave);
+
+            // Lưu year range
+            String yearFromStr = yearFromSpinner.getSelectedItem().toString();
+            String yearToStr = yearToSpinner.getSelectedItem().toString();
+
+            if (!"Tất cả".equals(yearFromStr) && !"Tất cả".equals(yearToStr)) {
+                try {
+                    int yearFrom = Integer.parseInt(yearFromStr);
+                    int yearTo = Integer.parseInt(yearToStr);
+                    filterManager.saveYearRange(yearFrom, yearTo);
+                } catch (NumberFormatException e) {
+                    Log.e("ExploreActivity", "Error parsing year range: " + e.getMessage());
+                }
+            }
 
             // Lưu tùy chọn sắp xếp
             int checkedId = sortGroup.getCheckedRadioButtonId();
@@ -626,8 +682,58 @@ public class ExploreActivity extends AppCompatActivity {
 
         dialog.show();
     }
+    private void setupYearSpinners(Spinner yearFromSpinner, Spinner yearToSpinner) {
+        // Tạo danh sách năm từ 1970 đến năm hiện tại
+        List<String> years = new ArrayList<>();
+        years.add("Tất cả"); // Option đầu tiên
 
-    // ✅ THÊM METHOD MỚI ĐỂ LOAD GENRES TỪ DATABASE
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        for (int year = currentYear; year >= 1970; year--) { // Từ mới nhất đến cũ nhất
+            years.add(String.valueOf(year));
+        }
+
+        // Tạo adapter cho spinner
+        ArrayAdapter<String> yearAdapter = new ArrayAdapter<String>(this,
+                android.R.layout.simple_spinner_item, years) {
+            @Override
+            public View getDropDownView(int position, View convertView, ViewGroup parent) {
+                View view = super.getDropDownView(position, convertView, parent);
+                TextView textView = (TextView) view;
+                textView.setTextColor(getResources().getColor(android.R.color.black));
+                return view;
+            }
+        };
+        yearAdapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+
+        // Set adapter cho cả 2 spinner
+        yearFromSpinner.setAdapter(yearAdapter);
+        yearToSpinner.setAdapter(yearAdapter);
+
+        // Set giá trị hiện tại từ FilterManager
+        int savedYearFrom = filterManager.getYearFrom();
+        int savedYearTo = filterManager.getYearTo();
+
+        // Tìm và set position cho yearFrom
+        if (savedYearFrom > 1970) {
+            String yearFromStr = String.valueOf(savedYearFrom);
+            int fromPosition = years.indexOf(yearFromStr);
+            if (fromPosition >= 0) {
+                yearFromSpinner.setSelection(fromPosition);
+            }
+        }
+
+        // Tìm và set position cho yearTo
+        if (savedYearTo < currentYear) {
+            String yearToStr = String.valueOf(savedYearTo);
+            int toPosition = years.indexOf(yearToStr);
+            if (toPosition >= 0) {
+                yearToSpinner.setSelection(toPosition);
+            }
+        }
+
+        Log.d("ExploreActivity", "Year spinners setup complete. Range: " + savedYearFrom + " - " + savedYearTo);
+    }
+
     private void loadGenresFromDatabase(LinearLayout genreContainer,
                                         List<CheckBox> genreCheckBoxes,
                                         Set<String> selectedGenres) {

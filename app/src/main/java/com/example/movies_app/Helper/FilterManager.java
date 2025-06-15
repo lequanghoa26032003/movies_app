@@ -3,6 +3,7 @@ package com.example.movies_app.Helper;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import java.util.Calendar;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -35,11 +36,13 @@ public class FilterManager {
     }
 
     public int getYearFrom() {
-        return prefs.getInt(KEY_YEAR_FROM, 1970);
+        return prefs.getInt(KEY_YEAR_FROM, 1970); // Default từ 1970
     }
 
     public int getYearTo() {
-        return prefs.getInt(KEY_YEAR_TO, 2023);
+        // Default đến năm hiện tại
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+        return prefs.getInt(KEY_YEAR_TO, currentYear);
     }
 
     public void saveSortBy(String sortBy) {
@@ -59,13 +62,44 @@ public class FilterManager {
                 .apply();
     }
 
+    // Thêm method để check xem có filter nào được áp dụng không
+    public boolean hasActiveFilters() {
+        Set<String> genres = getSelectedGenres();
+        int yearFrom = getYearFrom();
+        int yearTo = getYearTo();
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+        return !genres.isEmpty() ||
+                yearFrom > 1970 ||
+                yearTo < currentYear;
+    }
+
+    // Thêm method để get filter summary
+    public String getFilterSummary() {
+        StringBuilder summary = new StringBuilder();
+
+        Set<String> genres = getSelectedGenres();
+        if (!genres.isEmpty()) {
+            summary.append("Thể loại: ").append(genres.size()).append(" ");
+        }
+
+        int yearFrom = getYearFrom();
+        int yearTo = getYearTo();
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+        if (yearFrom > 1970 || yearTo < currentYear) {
+            summary.append("Năm: ").append(yearFrom).append("-").append(yearTo).append(" ");
+        }
+
+        return summary.toString().trim();
+    }
+
+    // Giữ nguyên method buildFilterUrl (có thể dùng sau)
     public String buildFilterUrl(String baseUrl) {
         StringBuilder urlBuilder = new StringBuilder(baseUrl);
 
-        // Thêm tham số truy vấn nếu cần
         boolean hasQueryParams = baseUrl.contains("?");
 
-        // Thêm thể loại
         Set<String> genres = getSelectedGenres();
         if (!genres.isEmpty()) {
             if (hasQueryParams) {
@@ -74,14 +108,14 @@ public class FilterManager {
                 urlBuilder.append("?");
                 hasQueryParams = true;
             }
-            // Lấy thể loại đầu tiên
             urlBuilder.append("genre=").append(genres.iterator().next());
         }
 
-        // Thêm năm
         int yearFrom = getYearFrom();
         int yearTo = getYearTo();
-        if (yearFrom > 1970 || yearTo < 2023) {
+        int currentYear = Calendar.getInstance().get(Calendar.YEAR);
+
+        if (yearFrom > 1970 || yearTo < currentYear) {
             if (hasQueryParams) {
                 urlBuilder.append("&");
             } else {
@@ -91,7 +125,6 @@ public class FilterManager {
             urlBuilder.append("year_range=").append(yearFrom).append(",").append(yearTo);
         }
 
-        // Thêm sắp xếp
         String sortBy = getSortBy();
         if (!sortBy.isEmpty()) {
             if (hasQueryParams) {

@@ -1,5 +1,6 @@
 package com.example.movies_app.Activity;
 
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -16,9 +17,11 @@ import androidx.media3.exoplayer.ExoPlayer;
 import androidx.media3.ui.PlayerView;
 
 import com.example.movies_app.R;
+import com.example.movies_app.service.WatchHistoryService;
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.YouTubePlayer;
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.listeners.AbstractYouTubePlayerListener;
 import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.views.YouTubePlayerView;
+import com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants;
 
 public class PlayerActivity extends AppCompatActivity {
     private static final String TAG = "PlayerActivity";
@@ -32,11 +35,20 @@ public class PlayerActivity extends AppCompatActivity {
 
     // Players
     private ExoPlayer exoPlayer;
+    private YouTubePlayer currentYouTubePlayer;
 
     // Intent data
     private String videoUrl;
     private String youtubeKey;
     private String movieTitle;
+    private long resumePosition = 0;
+    private int movieId = -1;
+
+    // Watch History
+    private WatchHistoryService watchHistoryService;
+    private int currentUserId = -1;
+    private long currentPosition = 0;
+    private boolean isWatchingStarted = false;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,6 +56,7 @@ public class PlayerActivity extends AppCompatActivity {
         setContentView(R.layout.activity_player);
 
         initViews();
+        initServices();
         getIntentData();
         setupBackButton();
         playVideo();
@@ -60,14 +73,29 @@ public class PlayerActivity extends AppCompatActivity {
         getLifecycle().addObserver(youTubePlayerView);
     }
 
+    private void initServices() {
+        watchHistoryService = WatchHistoryService.getInstance(this);
+        getCurrentUser();
+    }
+
+    private void getCurrentUser() {
+        SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
+        currentUserId = prefs.getInt("user_id", -1);
+        Log.d(TAG, "Current user ID: " + currentUserId);
+    }
+
     private void getIntentData() {
         videoUrl = getIntent().getStringExtra("videoUrl");
         youtubeKey = getIntent().getStringExtra("youtubeKey");
         movieTitle = getIntent().getStringExtra("title");
+        resumePosition = getIntent().getLongExtra("resumePosition", 0);
+        movieId = getIntent().getIntExtra("movieId", -1);
 
         Log.d(TAG, "📱 Intent data - Title: " + movieTitle);
         Log.d(TAG, "📱 Intent data - VideoURL: " + videoUrl);
         Log.d(TAG, "📱 Intent data - YouTubeKey: " + youtubeKey);
+        Log.d(TAG, "📱 Intent data - ResumePosition: " + resumePosition);
+        Log.d(TAG, "📱 Intent data - MovieID: " + movieId);
 
         // Set title
         if (movieTitle != null && !movieTitle.isEmpty()) {
@@ -80,6 +108,7 @@ public class PlayerActivity extends AppCompatActivity {
     private void setupBackButton() {
         backButton.setOnClickListener(v -> {
             Log.d(TAG, "🔙 Back button clicked");
+            saveWatchHistoryBeforeExit();
             finish();
         });
     }
@@ -146,13 +175,53 @@ public class PlayerActivity extends AppCompatActivity {
             @Override
             public void onReady(@NonNull YouTubePlayer youTubePlayer) {
                 Log.d(TAG, "✅ YouTube Player ready, loading video: " + videoKey);
-                youTubePlayer.loadVideo(videoKey, 0f);
+                currentYouTubePlayer = youTubePlayer;
+
+                // Load video và seek đến vị trí resume nếu có
+                if (resumePosition > 0) {
+                    youTubePlayer.loadVideo(videoKey, resumePosition / 1000f); // Convert ms to seconds
+                } else {
+                    youTubePlayer.loadVideo(videoKey, 0f);
+                }
+
                 youTubePlayer.play();
+
+                // Lưu lịch sử bắt đầu xem
+                saveWatchHistoryStart();
+            }
+
+            @Override
+            public void onCurrentSecond(@NonNull YouTubePlayer youTubePlayer, float second) {
+                // Cập nhật vị trí hiện tại (convert seconds to milliseconds)
+                currentPosition = (long) (second * 1000);
+
+                // Log mỗi 10 giây để không spam log
+                if ((long) second % 10 == 0) {
+                    Log.d(TAG, "🎬 Current position: " + second + "s (" + currentPosition + "ms)");
+                }
+            }
+
+            @Override
+            public void onStateChange(@NonNull YouTubePlayer youTubePlayer,
+                                      @NonNull PlayerConstants.PlayerState state) {
+                Log.d(TAG, "🎬 YouTube Player state changed: " + state.toString());
+
+                switch (state) {
+                    case PLAYING:
+                        if (!isWatchingStarted) {
+                            saveWatchHistoryStart();
+                        }
+                        break;
+                    case PAUSED:
+                    case ENDED:
+                        saveWatchHistoryPosition();
+                        break;
+                }
             }
 
             @Override
             public void onError(@NonNull YouTubePlayer youTubePlayer,
-                                @NonNull com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerError error) {
+                                @NonNull PlayerConstants.PlayerError error) {
                 Log.e(TAG, "❌ YouTube Player error: " + error.toString());
                 showError("Lỗi phát video YouTube: " + error.toString());
 
@@ -160,12 +229,6 @@ public class PlayerActivity extends AppCompatActivity {
                 hideAllPlayers();
                 String fallbackUrl = "https://www.youtube.com/embed/" + videoKey + "?autoplay=1";
                 playWithWebView(fallbackUrl);
-            }
-
-            @Override
-            public void onStateChange(@NonNull YouTubePlayer youTubePlayer,
-                                      @NonNull com.pierfrancescosoffritti.androidyoutubeplayer.core.player.PlayerConstants.PlayerState state) {
-                Log.d(TAG, "🎬 YouTube Player state changed: " + state.toString());
             }
         });
     }
@@ -182,7 +245,14 @@ public class PlayerActivity extends AppCompatActivity {
             MediaItem mediaItem = MediaItem.fromUri(videoUrl);
             exoPlayer.setMediaItem(mediaItem);
             exoPlayer.prepare();
+
+            // Seek đến vị trí resume nếu có
+            if (resumePosition > 0) {
+                exoPlayer.seekTo(resumePosition);
+            }
+
             exoPlayer.play();
+            saveWatchHistoryStart();
 
             Log.d(TAG, "✅ ExoPlayer started successfully");
 
@@ -213,16 +283,77 @@ public class PlayerActivity extends AppCompatActivity {
                 String key = extractYouTubeKey(videoUrl);
                 if (key != null) {
                     finalUrl = "https://www.youtube.com/embed/" + key + "?autoplay=1&playsinline=1";
+                    if (resumePosition > 0) {
+                        finalUrl += "&start=" + (resumePosition / 1000); // Convert to seconds
+                    }
                 }
             }
 
             webViewPlayer.loadUrl(finalUrl);
+            saveWatchHistoryStart();
             Log.d(TAG, "✅ WebView loading URL: " + finalUrl);
 
         } catch (Exception e) {
             Log.e(TAG, "❌ WebView error: " + e.getMessage());
             showError("Lỗi phát video với WebView: " + e.getMessage());
         }
+    }
+
+    // ========== WATCH HISTORY METHODS ==========
+
+    private void saveWatchHistoryStart() {
+        if (currentUserId == -1 || movieId == -1 || isWatchingStarted) {
+            return;
+        }
+
+        isWatchingStarted = true;
+        Log.d(TAG, "📝 Saving watch history start for movie: " + movieId);
+
+        watchHistoryService.saveWatchHistory(movieId, currentPosition, new WatchHistoryService.WatchHistoryOperationCallback() {
+            @Override
+            public void onSuccess(String message) {
+                Log.d(TAG, "✅ Watch history start saved: " + message);
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "❌ Error saving watch history start: " + error);
+            }
+        });
+    }
+
+    private void saveWatchHistoryPosition() {
+        if (currentUserId == -1 || movieId == -1 || currentPosition <= 0) {
+            return;
+        }
+
+        Log.d(TAG, "📝 Saving watch position: " + currentPosition + "ms for movie: " + movieId);
+
+        watchHistoryService.saveWatchHistory(movieId, currentPosition, new WatchHistoryService.WatchHistoryOperationCallback() {
+            @Override
+            public void onSuccess(String message) {
+                Log.d(TAG, "✅ Watch position saved: " + message);
+            }
+
+            @Override
+            public void onError(String error) {
+                Log.e(TAG, "❌ Error saving watch position: " + error);
+            }
+        });
+    }
+
+    private void saveWatchHistoryBeforeExit() {
+        if (currentUserId == -1 || movieId == -1) {
+            return;
+        }
+
+        // Lấy vị trí hiện tại từ ExoPlayer nếu đang phát
+        if (exoPlayer != null && exoPlayer.isPlaying()) {
+            currentPosition = exoPlayer.getCurrentPosition();
+        }
+
+        Log.d(TAG, "📝 Saving watch history before exit. Position: " + currentPosition + "ms");
+        saveWatchHistoryPosition();
     }
 
     private void hideAllPlayers() {
@@ -244,6 +375,10 @@ public class PlayerActivity extends AppCompatActivity {
     @Override
     protected void onPause() {
         super.onPause();
+
+        // Lưu vị trí khi pause
+        saveWatchHistoryPosition();
+
         if (exoPlayer != null && exoPlayer.isPlaying()) {
             exoPlayer.pause();
         }
@@ -258,14 +393,26 @@ public class PlayerActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onStop() {
+        super.onStop();
+        // Lưu lịch sử khi activity bị stop
+        saveWatchHistoryBeforeExit();
+    }
+
+    @Override
     protected void onDestroy() {
         super.onDestroy();
+
+        // Lưu lịch sử trước khi destroy
+        saveWatchHistoryBeforeExit();
 
         // Release ExoPlayer
         if (exoPlayer != null) {
             exoPlayer.release();
             exoPlayer = null;
         }
+
+        currentYouTubePlayer = null;
 
         // YouTube player will be automatically released by lifecycle
         Log.d(TAG, "🧹 PlayerActivity destroyed and resources released");

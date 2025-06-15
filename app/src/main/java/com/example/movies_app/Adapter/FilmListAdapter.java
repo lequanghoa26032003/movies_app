@@ -10,10 +10,10 @@ import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.recyclerview.widget.RecyclerView;
+
 import com.bumptech.glide.Glide;
 import com.example.movies_app.Activity.DetailActivity;
 import com.example.movies_app.Domain.ListFilm;
-import com.example.movies_app.Domain.FilmItem;
 import com.example.movies_app.R;
 
 public class FilmListAdapter extends RecyclerView.Adapter<FilmListAdapter.ViewHolder>{
