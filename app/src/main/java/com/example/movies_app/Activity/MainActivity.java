@@ -142,7 +142,9 @@ public class MainActivity extends AppCompatActivity {
 
         loading1 = findViewById(R.id.loading1);
         loading2 = findViewById(R.id.loading2);
-
+        // titles động
+        newMoviesTitle = findViewById(R.id.textView);
+        upcomingTitle = findViewById(R.id.textView8);
         // Search views
         homeSearchEditText = findViewById(R.id.homeSearchEditText);
         homeSearchRecyclerView = findViewById(R.id.homeSearchRecyclerView);
@@ -502,8 +504,7 @@ public class MainActivity extends AppCompatActivity {
 
     // ===== DYNAMIC CATEGORY TITLES =====
     private void updateCategoryTitles() {
-        // Uncomment nếu bạn có TextView cho titles trong layout
-        /*
+        // UNCOMMENT PHẦN NÀY:
         if (newMoviesTitle != null && upcomingTitle != null) {
             SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
             int currentUserId = prefs.getInt("user_id", -1);
@@ -516,9 +517,8 @@ public class MainActivity extends AppCompatActivity {
                 upcomingTitle.setText("🎯 Phim thịnh hành");
             }
         }
-        */
 
-        // Log để debug
+        // Giữ nguyên phần log
         SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
         int currentUserId = prefs.getInt("user_id", -1);
 
