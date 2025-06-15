@@ -34,6 +34,7 @@ import com.example.movies_app.Domain.TMDbVideoResponse;
 import com.example.movies_app.Helper.TMDbApiService;
 import com.example.movies_app.R;
 import com.example.movies_app.service.FavoriteService;
+import com.example.movies_app.service.WatchHistoryService;
 import com.google.android.material.imageview.ShapeableImageView;
 import com.google.android.material.tabs.TabLayout;
 import com.google.gson.Gson;
@@ -73,11 +74,12 @@ public class DetailActivity extends AppCompatActivity {
     private boolean isFavorite = false;
     private int currentUserId = -1;
     private FavoriteService favoriteService;
+    private WatchHistoryService watchHistoryService;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_detail);
-
+        watchHistoryService = WatchHistoryService.getInstance(this);
         // Khởi tạo các services và database
         tmdbApiService = new TMDbApiService(this);
         database = AppDatabase.getInstance(this);
@@ -124,7 +126,69 @@ public class DetailActivity extends AppCompatActivity {
         idFilm = intent.getIntExtra("id", 0);
         Log.d("DetailActivity", "Movie ID: " + idFilm);
     }
+    private void startWatchingMovie() {
+        // Lưu lịch sử xem với position = 0 (bắt đầu xem)
+        if (localMovie != null) {
+            watchHistoryService.saveWatchHistory(localMovie.getId(), 0, new WatchHistoryService.WatchHistoryOperationCallback() {
+                @Override
+                public void onSuccess(String message) {
+                    Log.d("DetailActivity", "Watch history saved: " + message);
+                }
 
+                @Override
+                public void onError(String error) {
+                    Log.e("DetailActivity", "Error saving watch history: " + error);
+                }
+            });
+        }
+    }
+    private void updateWatchPosition(long currentPosition) {
+        if (localMovie != null && currentPosition > 0) {
+            watchHistoryService.saveWatchHistory(localMovie.getId(), currentPosition, null);
+        }
+    }
+
+    // Khi load phim, lấy vị trí xem gần nhất:
+    private void loadLastWatchPosition() {
+        if (localMovie != null) {
+            watchHistoryService.getLastWatchPosition(localMovie.getId(), new WatchHistoryService.LastPositionCallback() {
+                @Override
+                public void onResult(long position) {
+                    if (position > 0) {
+                        // Hiển thị dialog hỏi có muốn tiếp tục từ vị trí cũ không
+                        runOnUiThread(() -> {
+                            showResumeDialog(position);
+                        });
+                    }
+                }
+            });
+        }
+    }
+
+    private void showResumeDialog(long position) {
+        new androidx.appcompat.app.AlertDialog.Builder(this)
+                .setTitle("Tiếp tục xem")
+                .setMessage("Bạn có muốn tiếp tục xem từ vị trí đã dừng lại không?")
+                .setPositiveButton("Tiếp tục", (dialog, which) -> {
+                    seekToPosition(position);
+                })
+                .setNegativeButton("Xem từ đầu", (dialog, which) -> {
+                    seekToPosition(0);
+                })
+                .show();
+    }
+    private void seekToPosition(long position) {
+        // Khởi tạo Intent như processVideoUrl
+        int movieId = getCurrentMovieId();
+        String movieTitle = getCurrentMovieTitle();
+        Intent intent = new Intent(this, PlayerActivity.class);
+        intent.putExtra("videoUrl", currentMovieDetail != null
+                ? currentMovieDetail.getVideoUrl()
+                : ""); // URL hiện tại
+        intent.putExtra("resumePosition", position);
+        intent.putExtra("title", movieTitle);
+        startActivity(intent);
+    }
     private void loadMovieFromDatabase() {
         if (idFilm <= 0) {
             Log.e("DetailActivity", "Invalid movie ID: " + idFilm);

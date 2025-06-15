@@ -17,7 +17,7 @@ import java.util.List;
 
 @Dao
 public interface MovieDao {
-
+    // Các phương thức cũ...
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     void insertMovie(Movie movie);
 

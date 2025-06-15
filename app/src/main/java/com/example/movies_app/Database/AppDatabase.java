@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
                 WatchHistory.class,
                 SearchHistory.class
         },
-        version = 3,
+        version = 4, // ✅ TĂNG VERSION LÊN 4
         exportSchema = false
 )
 public abstract class AppDatabase extends RoomDatabase {
@@ -37,6 +37,7 @@ public abstract class AppDatabase extends RoomDatabase {
 
     public abstract MovieDao movieDao();
     public abstract UserDao userDao();
+    public abstract WatchHistoryDao watchHistoryDao(); // ✅ THÊM DAO MỚI
 
     public static synchronized AppDatabase getInstance(Context context) {
         if (instance == null) {
@@ -45,10 +46,15 @@ public abstract class AppDatabase extends RoomDatabase {
                             AppDatabase.class,
                             DATABASE_NAME)
                     .fallbackToDestructiveMigration()
-                    .addCallback(prepopulateDatabase) // Thêm callback để chèn dữ liệu mẫu
+                    .addCallback(prepopulateDatabase)
                     .build();
         }
         return instance;
+    }
+
+    // ✅ THÊM METHOD GETTER CHO EXECUTOR
+    public static ExecutorService getDatabaseWriteExecutor() {
+        return databaseWriteExecutor;
     }
 
     // Callback để chèn dữ liệu mẫu khi database được tạo
@@ -62,6 +68,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 // Lấy các DAO
                 UserDao userDao = instance.userDao();
                 MovieDao movieDao = instance.movieDao();
+                WatchHistoryDao watchHistoryDao = instance.watchHistoryDao(); // ✅ THÊM DAO MỚI
 
                 // Thêm dữ liệu mẫu cho người dùng
                 User adminUser = new User(
@@ -70,7 +77,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         "5f4dcc3b5aa765d61d8327deb882cf99", // md5 của "password"
                         "Administrator",
                         "0987654321",
-                        "2023-05-06"
+                        "2025-06-15 11:18:34" // ✅ CẬP NHẬT THỜI GIAN HIỆN TẠI
                 );
                 adminUser.setAvatarUrl("https://example.com/avatars/admin.jpg");
                 long adminId = userDao.insertUser(adminUser);
@@ -81,7 +88,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         "5f4dcc3b5aa765d61d8327deb882cf99", // md5 của "password"
                         "Normal User",
                         "0123456789",
-                        "2023-05-06"
+                        "2025-06-15 11:18:34" // ✅ CẬP NHẬT THỜI GIAN HIỆN TẠI
                 );
                 long userId = userDao.insertUser(normalUser);
 
@@ -93,7 +100,7 @@ public abstract class AppDatabase extends RoomDatabase {
                 UserPreference userPrefs = new UserPreference((int)userId);
                 userDao.insertUserPreference(userPrefs);
 
-                // Thêm phim mẫu
+                // ✅ THÊM PHIM MẪU VỚI INT (0 = CHƯA TẢI, 1 = ĐÃ TẢI)
                 Movie movie1 = new Movie(
                         1,
                         "The Shawshank Redemption",
@@ -103,8 +110,8 @@ public abstract class AppDatabase extends RoomDatabase {
                         "9.3",
                         "Drama",
                         "https://example.com/images/shawshank1.jpg,https://example.com/images/shawshank2.jpg",
-                        "2023-05-06",
-                        0
+                        "2025-06-15 11:18:34",
+                        0 // ✅ INT - 0 = CHƯA TẢI
                 );
                 movieDao.insertMovie(movie1);
 
@@ -117,8 +124,8 @@ public abstract class AppDatabase extends RoomDatabase {
                         "9.2",
                         "Crime,Drama",
                         "https://example.com/images/godfather1.jpg,https://example.com/images/godfather2.jpg",
-                        "2023-05-06",
-                        0
+                        "2025-06-15 11:18:34",
+                        0 // ✅ INT - 0 = CHƯA TẢI
                 );
                 movieDao.insertMovie(movie2);
 
@@ -131,8 +138,8 @@ public abstract class AppDatabase extends RoomDatabase {
                         "9.0",
                         "Action,Crime,Drama,Thriller",
                         "https://example.com/images/darkknight1.jpg,https://example.com/images/darkknight2.jpg",
-                        "2023-05-06",
-                        0
+                        "2025-06-15 11:18:34",
+                        1 // ✅ INT - 1 = ĐÃ TẢI (ví dụ)
                 );
                 movieDao.insertMovie(movie3);
 
@@ -151,7 +158,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         "movie",
                         "https://example.com/videos/shawshank.mp4",
                         "https://example.com/subtitles/shawshank.vtt",
-                        "2023-05-06"
+                        "2025-06-15 11:18:34"
                 );
                 movieDao.insertMovieDetail(detail1);
 
@@ -169,7 +176,7 @@ public abstract class AppDatabase extends RoomDatabase {
                         "movie",
                         "https://example.com/videos/godfather.mp4",
                         "https://example.com/subtitles/godfather.vtt",
-                        "2023-05-06"
+                        "2025-06-15 11:18:34"
                 );
                 movieDao.insertMovieDetail(detail2);
 
@@ -187,33 +194,49 @@ public abstract class AppDatabase extends RoomDatabase {
                         "movie",
                         "https://example.com/videos/darkknight.mp4",
                         "https://example.com/subtitles/darkknight.vtt",
-                        "2023-05-06"
+                        "2025-06-15 11:18:34"
                 );
                 movieDao.insertMovieDetail(detail3);
 
                 // Thêm phim yêu thích
-                FavoriteMovie fav1 = new FavoriteMovie((int)adminId, 1, "2023-05-06");
+                FavoriteMovie fav1 = new FavoriteMovie((int)adminId, 1, "2025-06-15 11:18:34");
                 movieDao.insertFavoriteMovie(fav1);
 
-                FavoriteMovie fav2 = new FavoriteMovie((int)userId, 1, "2023-05-06");
+                FavoriteMovie fav2 = new FavoriteMovie((int)userId, 1, "2025-06-15 11:18:34");
                 movieDao.insertFavoriteMovie(fav2);
 
-                FavoriteMovie fav3 = new FavoriteMovie((int)userId, 2, "2023-05-06");
+                FavoriteMovie fav3 = new FavoriteMovie((int)userId, 2, "2025-06-15 11:18:34");
                 movieDao.insertFavoriteMovie(fav3);
 
-                // Thêm lịch sử xem
-                WatchHistory hist1 = new WatchHistory((int)adminId, 1, "2023-05-06", 3600000); // Đã xem 1 giờ
-                movieDao.insertWatchHistory(hist1);
+                // ✅ SỬ DỤNG WATCHHISTORYDAO THAY VÌ MOVIEDAO CHO WATCH HISTORY
+                WatchHistory hist1 = new WatchHistory((int)adminId, 1, "2025-06-14 20:30:00", 3600000); // Đã xem 1 giờ
+                watchHistoryDao.insertWatchHistory(hist1);
 
-                WatchHistory hist2 = new WatchHistory((int)userId, 3, "2023-05-06", 1800000); // Đã xem 30 phút
-                movieDao.insertWatchHistory(hist2);
+                WatchHistory hist2 = new WatchHistory((int)userId, 3, "2025-06-13 19:15:00", 1800000); // Đã xem 30 phút
+                watchHistoryDao.insertWatchHistory(hist2);
+
+                // ✅ THÊM THÊM DỮ LIỆU LỊCH SỬ XEM MẪU
+                WatchHistory hist3 = new WatchHistory((int)userId, 1, "2025-06-12 21:00:00", 5400000); // 1.5 giờ
+                watchHistoryDao.insertWatchHistory(hist3);
+
+                WatchHistory hist4 = new WatchHistory((int)adminId, 2, "2025-06-11 18:45:00", 7200000); // 2 giờ
+                watchHistoryDao.insertWatchHistory(hist4);
+
+                WatchHistory hist5 = new WatchHistory((int)userId, 2, "2025-06-10 16:20:00", 4500000); // 1.25 giờ
+                watchHistoryDao.insertWatchHistory(hist5);
 
                 // Thêm lịch sử tìm kiếm
-                SearchHistory search1 = new SearchHistory((int)adminId, "drama movies", "2023-05-06");
+                SearchHistory search1 = new SearchHistory((int)adminId, "drama movies", "2025-06-15 10:30:00");
                 movieDao.insertSearchHistory(search1);
 
-                SearchHistory search2 = new SearchHistory((int)userId, "action", "2023-05-06");
+                SearchHistory search2 = new SearchHistory((int)userId, "action", "2025-06-15 09:15:00");
                 movieDao.insertSearchHistory(search2);
+
+                SearchHistory search3 = new SearchHistory((int)userId, "crime thriller", "2025-06-14 16:20:00");
+                movieDao.insertSearchHistory(search3);
+
+                SearchHistory search4 = new SearchHistory((int)adminId, "christopher nolan", "2025-06-13 14:10:00");
+                movieDao.insertSearchHistory(search4);
             });
         }
     };

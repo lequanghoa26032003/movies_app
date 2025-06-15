@@ -1,57 +1,73 @@
 <?xml version="1.0" encoding="utf-8"?>
-<androidx.cardview.widget.CardView
-    xmlns:android="http://schemas.android.com/apk/res/android"
-    xmlns:card_view="http://schemas.android.com/apk/res-auto"
+<androidx.cardview.widget.CardView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_margin="8dp"
-    card_view:cardCornerRadius="8dp"
-    card_view:cardElevation="4dp"
-    android:foreground="?android:attr/selectableItemBackground">
+    app:cardCornerRadius="12dp"
+    app:cardElevation="4dp">
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
-        android:padding="8dp">
+        android:orientation="vertical">
 
-        <ImageView
-            android:id="@+id/imgPoster"
-            android:layout_width="100dp"
-            android:layout_height="140dp"
-            android:scaleType="centerCrop"
-            android:contentDescription="@string/movie_poster"/>
+        <RelativeLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content">
 
-        <TextView
-            android:id="@+id/txtTitle"
+            <ImageView
+                android:id="@+id/imgPoster"
+                android:layout_width="match_parent"
+                android:layout_height="200dp"
+                android:scaleType="centerCrop"
+                android:src="@drawable/ic_movie" />
+
+            <ImageView
+                android:id="@+id/btnRemoveHistory"
+                android:layout_width="32dp"
+                android:layout_height="32dp"
+                android:layout_alignParentTop="true"
+                android:layout_alignParentEnd="true"
+                android:layout_margin="8dp"
+                android:background="@drawable/gradirent_color_background"
+                android:padding="6dp"
+                android:src="@drawable/ic_close"
+                android:tint="@android:color/white"
+                android:contentDescription="Xóa khỏi lịch sử" />
+
+        </RelativeLayout>
+
+        <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_toEndOf="@id/imgPoster"
-            android:layout_marginStart="8dp"
-            android:textColor="@android:color/black"
-            android:textSize="16sp"
-            android:textStyle="bold"
-            android:maxLines="2"
-            android:ellipsize="end"/>
+            android:orientation="vertical"
+            android:padding="12dp">
 
-        <TextView
-            android:id="@+id/txtWatchedDate"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_below="@id/txtTitle"
-            android:layout_toEndOf="@id/imgPoster"
-            android:layout_marginStart="8dp"
-            android:layout_marginTop="4dp"
-            android:textColor="@android:color/darker_gray"
-            android:textSize="12sp"/>
+            <TextView
+                android:id="@+id/txtTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="Movie Title"
+                android:textColor="@android:color/black"
+                android:textSize="16sp"
+                android:textStyle="bold"
+                android:maxLines="2"
+                android:ellipsize="end" />
 
-        <ImageView
-            android:id="@+id/btnRemoveHistory"
-            android:layout_width="24dp"
-            android:layout_height="24dp"
-            android:layout_alignParentEnd="true"
-            android:layout_margin="6dp"
-            android:src="@drawable/ic_close"
-            android:tint="@color/red"
-            android:background="?android:attr/selectableItemBackgroundBorderless"/>
-    </RelativeLayout>
+            <TextView
+                android:id="@+id/txtWatchedDate"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="4dp"
+                android:text="Xem vào: 2025-06-15"
+                android:textColor="@android:color/darker_gray"
+                android:textSize="12sp"
+                android:maxLines="1"
+                android:ellipsize="end" />
+
+        </LinearLayout>
+
+    </LinearLayout>
+
 </androidx.cardview.widget.CardView>
