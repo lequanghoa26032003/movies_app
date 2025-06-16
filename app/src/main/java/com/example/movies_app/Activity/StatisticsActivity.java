@@ -217,21 +217,26 @@ public class StatisticsActivity extends AppCompatActivity implements Top10Movies
     }
 
     private void updateChartButtons() {
-        // Reset all buttons
+        // Reset all buttons to default
         btnDay.setBackgroundResource(R.drawable.btn_background);
         btnWeek.setBackgroundResource(R.drawable.btn_background);
         btnMonth.setBackgroundResource(R.drawable.btn_background);
 
+        // Set text color to white for all
+        btnDay.setTextColor(getResources().getColor(android.R.color.white));
+        btnWeek.setTextColor(getResources().getColor(android.R.color.white));
+        btnMonth.setTextColor(getResources().getColor(android.R.color.white));
+
         // Highlight selected button
         switch (currentChartPeriod) {
             case DAY:
-                btnDay.setBackgroundColor(getResources().getColor(R.color.green));
+                btnDay.setBackgroundResource(R.drawable.btn_background_green);
                 break;
             case WEEK:
-                btnWeek.setBackgroundColor(getResources().getColor(R.color.green));
+                btnWeek.setBackgroundResource(R.drawable.btn_background_green);
                 break;
             case MONTH:
-                btnMonth.setBackgroundColor(getResources().getColor(R.color.green));
+                btnMonth.setBackgroundResource(R.drawable.btn_background_green);
                 break;
         }
     }
@@ -242,129 +247,195 @@ public class StatisticsActivity extends AppCompatActivity implements Top10Movies
                 List<Entry> entries = new ArrayList<>();
                 List<String> labels = new ArrayList<>();
 
-                // SỬ DỤNG DỮ LIỆU THỰC TỪ DATABASE
-                generateRealChartData(entries, labels, period);
+                boolean hasData = generateRealChartData(entries, labels, period);
 
-                runOnUiThread(() -> updateChart(entries, labels, period));
+                runOnUiThread(() -> {
+                    if (hasData && !entries.isEmpty()) {
+                        updateChart(entries, labels, period);
+                    } else {
+                        showNoDataChart(period);
+                    }
+                });
             } catch (Exception e) {
-                runOnUiThread(() ->
-                        Toast.makeText(this, "Lỗi tải dữ liệu biểu đồ: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+                runOnUiThread(() -> {
+                    showNoDataChart(period);
+                    Toast.makeText(this, "Lỗi tải dữ liệu: " + e.getMessage(), Toast.LENGTH_SHORT).show();
+                });
             }
         }).start();
     }
 
-    private void generateRealChartData(List<Entry> entries, List<String> labels, ChartPeriod period) {
+
+    private boolean generateRealChartData(List<Entry> entries, List<String> labels, ChartPeriod period) {
         try {
             switch (period) {
                 case DAY:
-                    generateDailyViewData(entries, labels);
-                    break;
+                    return generateDailyViewData(entries, labels);
                 case WEEK:
-                    generateWeeklyViewData(entries, labels);
-                    break;
+                    return generateWeeklyViewData(entries, labels);
                 case MONTH:
-                    generateMonthlyViewData(entries, labels);
-                    break;
+                    return generateMonthlyViewData(entries, labels);
             }
+            return false;
         } catch (Exception e) {
-            entries.clear();
-            labels.clear();
-            runOnUiThread(() ->
-                    Toast.makeText(StatisticsActivity.this,
-                                    "Chưa có dữ liệu để hiển thị",
-                                    Toast.LENGTH_SHORT)
-                            .show()
-            );
+            return false;
         }
     }
-    private void generateDailyViewData(List<Entry> entries, List<String> labels) {
+    private boolean generateDailyViewData(List<Entry> entries, List<String> labels) {
         try {
-            // Lấy dữ liệu thực từ database cho 7 ngày gần nhất
-            Calendar cal = Calendar.getInstance();
+            boolean hasAnyData = false;
 
-            for (int i = 6; i >= 0; i--) {
-                cal.add(Calendar.DAY_OF_MONTH, -i);
+            // Lấy 7 ngày gần nhất
+            for (int i = 0; i < 7; i++) {
+                Calendar dayCal = Calendar.getInstance();
+                dayCal.add(Calendar.DAY_OF_MONTH, -(6 - i)); // Từ 6 ngày trước đến hôm nay
+
                 String date = String.format(Locale.getDefault(), "%04d-%02d-%02d",
-                        cal.get(Calendar.YEAR),
-                        cal.get(Calendar.MONTH) + 1,
-                        cal.get(Calendar.DAY_OF_MONTH));
+                        dayCal.get(Calendar.YEAR),
+                        dayCal.get(Calendar.MONTH) + 1,
+                        dayCal.get(Calendar.DAY_OF_MONTH));
 
                 int viewsCount = database.movieDao().getViewsCountByDate(date);
 
-                entries.add(new Entry(6 - i, viewsCount));
-                labels.add(String.format("T%d/%d",
-                        cal.get(Calendar.DAY_OF_MONTH),
-                        cal.get(Calendar.MONTH) + 1));
+                if (viewsCount > 0) {
+                    hasAnyData = true;
+                }
 
-                cal = Calendar.getInstance();
+                entries.add(new Entry(i, viewsCount));
+
+                // Tạo label đẹp: "T2 16/6" thay vì "T16/6"
+                String dayOfWeek = getDayOfWeekShort(dayCal.get(Calendar.DAY_OF_WEEK));
+                String dayLabel = String.format("%s %d/%d",
+                        dayOfWeek,
+                        dayCal.get(Calendar.DAY_OF_MONTH),
+                        dayCal.get(Calendar.MONTH) + 1);
+                labels.add(dayLabel);
             }
+
+            return hasAnyData;
         } catch (Exception e) {
-            for (int i = 0; i < 7; i++) {
-                entries.add(new Entry(i, 0));
-                labels.add("Ngày " + (i + 1));
-            }
+            return false;
         }
     }
-    private void generateWeeklyViewData(List<Entry> entries, List<String> labels) {
+    private String getDayOfWeekShort(int dayOfWeek) {
+        switch (dayOfWeek) {
+            case Calendar.MONDAY: return "T2";
+            case Calendar.TUESDAY: return "T3";
+            case Calendar.WEDNESDAY: return "T4";
+            case Calendar.THURSDAY: return "T5";
+            case Calendar.FRIDAY: return "T6";
+            case Calendar.SATURDAY: return "T7";
+            case Calendar.SUNDAY: return "CN";
+            default: return "T" + dayOfWeek;
+        }
+    }
+    private boolean generateWeeklyViewData(List<Entry> entries, List<String> labels) {
         try {
             Calendar cal = Calendar.getInstance();
+            boolean hasAnyData = false;
 
-            for (int i = 7; i >= 0; i--) { // 8 tuần gần nhất
-                cal.add(Calendar.WEEK_OF_YEAR, -i);
+            // Lùi về 8 tuần trước, sau đó lấy dữ liệu từ tuần cũ đến tuần mới
+            for (int i = 0; i < 8; i++) {
+                // Tính toán tuần
+                Calendar weekCal = Calendar.getInstance();
+                weekCal.add(Calendar.WEEK_OF_YEAR, -(7 - i)); // Từ 7 tuần trước đến tuần hiện tại
 
-                // Lấy tuần này
-                int weekOfYear = cal.get(Calendar.WEEK_OF_YEAR);
-                int year = cal.get(Calendar.YEAR);
+                int weekOfYear = weekCal.get(Calendar.WEEK_OF_YEAR);
+                int year = weekCal.get(Calendar.YEAR);
 
-                // Đếm số lượt xem trong tuần này
+                // Lấy dữ liệu
                 int viewsCount = database.movieDao().getViewsCountByWeek(year, weekOfYear);
 
-                entries.add(new Entry(7 - i, viewsCount));
-                labels.add(String.format("T%d", weekOfYear));
+                if (viewsCount > 0) {
+                    hasAnyData = true;
+                }
 
-                // Reset calendar
-                cal = Calendar.getInstance();
+                // Thêm vào chart
+                entries.add(new Entry(i, viewsCount));
+
+                // Tạo label đẹp hơn: "T23 (12/6)"
+                weekCal.set(Calendar.DAY_OF_WEEK, Calendar.MONDAY); // Lấy thứ 2 của tuần
+                String weekLabel = String.format("T%d", weekOfYear);
+                labels.add(weekLabel);
             }
+
+            return hasAnyData;
         } catch (Exception e) {
-            // Fallback data
-            for (int i = 0; i < 8; i++) {
-                entries.add(new Entry(i, 0));
-                labels.add("Tuần " + (i + 1));
-            }
+            return false;
         }
     }
-    private void generateMonthlyViewData(List<Entry> entries, List<String> labels) {
+
+    private boolean generateMonthlyViewData(List<Entry> entries, List<String> labels) {
         try {
-            Calendar cal = Calendar.getInstance();
+            boolean hasAnyData = false;
 
-            for (int i = 11; i >= 0; i--) { // 12 tháng gần nhất
-                cal.add(Calendar.MONTH, -i);
+            // Lấy 12 tháng gần nhất
+            for (int i = 0; i < 12; i++) {
+                Calendar monthCal = Calendar.getInstance();
+                monthCal.add(Calendar.MONTH, -(11 - i)); // Từ 11 tháng trước đến tháng hiện tại
 
-                int month = cal.get(Calendar.MONTH) + 1; // Calendar.MONTH starts from 0
-                int year = cal.get(Calendar.YEAR);
+                int month = monthCal.get(Calendar.MONTH) + 1;
+                int year = monthCal.get(Calendar.YEAR);
 
-                // Đếm số lượt xem trong tháng này
                 int viewsCount = database.movieDao().getViewsCountByMonth(year, month);
 
-                entries.add(new Entry(11 - i, viewsCount));
-                labels.add(String.format("T%d", month));
+                if (viewsCount > 0) {
+                    hasAnyData = true;
+                }
 
-                // Reset calendar
-                cal = Calendar.getInstance();
+                entries.add(new Entry(i, viewsCount));
+
+                // Tạo label đẹp: "T6/24" thay vì chỉ "T6"
+                String monthLabel = String.format("T%d/%d", month, year % 100);
+                labels.add(monthLabel);
             }
+
+            return hasAnyData;
         } catch (Exception e) {
-            // Fallback data
-            for (int i = 0; i < 12; i++) {
-                entries.add(new Entry(i, 0));
-                labels.add("T" + (i + 1));
-            }
+            return false;
         }
     }
+    private void showNoDataChart(ChartPeriod period) {
+        // Clear chart
+        statisticsChart.clear();
+        statisticsChart.invalidate();
 
+        // Show no data message
+        String periodText = "";
+        switch (period) {
+            case DAY:
+                periodText = "ngày";
+                break;
+            case WEEK:
+                periodText = "tuần";
+                break;
+            case MONTH:
+                periodText = "tháng";
+                break;
+        }
+
+        Toast.makeText(this,
+                "📊 Không có dữ liệu lượt xem theo " + periodText + "\n" +
+                        "💡 Hãy xem một số phim để có thống kê!",
+                Toast.LENGTH_LONG).show();
+
+        // Optionally, you can set a placeholder text on the chart
+        Description description = statisticsChart.getDescription();
+        description.setText("Không có dữ liệu để hiển thị");
+        description.setTextSize(14f);
+        description.setTextColor(getResources().getColor(android.R.color.darker_gray));
+        statisticsChart.setDescription(description);
+    }
     private void updateChart(List<Entry> entries, List<String> labels, ChartPeriod period) {
         if (entries.isEmpty()) {
-            statisticsChart.clear();
-            statisticsChart.invalidate();
+            showNoDataChart(period);
+            return;
+        }
+
+        // Check if all entries are 0
+        boolean allZero = entries.stream().allMatch(entry -> entry.getY() == 0);
+        if (allZero) {
+            showNoDataChart(period);
             return;
         }
 
@@ -372,24 +443,39 @@ public class StatisticsActivity extends AppCompatActivity implements Top10Movies
         LineDataSet dataSet = new LineDataSet(entries, getChartLabel(period));
         dataSet.setColor(getResources().getColor(R.color.blue));
         dataSet.setCircleColor(getResources().getColor(R.color.blue));
-        dataSet.setLineWidth(2f);
-        dataSet.setCircleRadius(4f);
+        dataSet.setLineWidth(3f);
+        dataSet.setCircleRadius(5f);
         dataSet.setFillColor(getResources().getColor(R.color.blue));
         dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
         dataSet.setDrawValues(true);
-        dataSet.setValueTextSize(9f);
+        dataSet.setValueTextSize(10f);
         dataSet.setValueTextColor(Color.BLACK);
 
-        // Create line data
+        // Enable fill
+        dataSet.setDrawFilled(true);
+        dataSet.setFillAlpha(30);
+
         LineData lineData = new LineData(dataSet);
         statisticsChart.setData(lineData);
 
-        // Set X-axis labels
+        // Configure X-axis
         XAxis xAxis = statisticsChart.getXAxis();
         xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
         xAxis.setLabelCount(labels.size());
+        xAxis.setGranularity(1f);
+        xAxis.setLabelRotationAngle(-45f); // Xoay label để không bị chồng lên nhau
+
+        // Configure Y-axis
+        YAxis leftYAxis = statisticsChart.getAxisLeft();
+        leftYAxis.setAxisMinimum(0f);
+
+        // Update description
+        Description description = statisticsChart.getDescription();
+        description.setText("");
+        statisticsChart.setDescription(description);
 
         // Refresh chart
+        statisticsChart.animateX(1000);
         statisticsChart.invalidate();
     }
 
