@@ -16,6 +16,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputMethodManager;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -31,6 +32,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.movies_app.Adapter.HorizontalGridMovieAdapter;
+import com.example.movies_app.Adapter.PaginatedMovieAdapter;
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Database.entity.FavoriteMovie;
 import com.example.movies_app.Database.entity.Movie;
@@ -80,9 +82,18 @@ public class MainActivity extends AppCompatActivity {
     private Runnable searchRunnable;
     private static final int SEARCH_DELAY = 300;
 
-    // ===== THÊM MỚI: Dynamic Category Titles =====
     private TextView newMoviesTitle, upcomingTitle;
+    private RecyclerView recyclerViewAllMovies;
+    private PaginatedMovieAdapter adapterAllMovies;
+    private ProgressBar loadingAllMovies;
+    private TextView allMoviesTitle, pageInfoText;
+    private Button btnPrevPage, btnNextPage;
+    private LinearLayout paginationControls;
 
+    private int currentPage = 1;
+    private int itemsPerPage = 8;
+    private int totalPages = 1;
+    private List<Movie> allMoviesFromDB;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -95,7 +106,7 @@ public class MainActivity extends AppCompatActivity {
         setupSearchListeners();
         loadMoviesFromDatabase();
         highlightHomeTab();
-
+        setupPaginationListeners();
         closeIcon = ResourcesCompat.getDrawable(getResources(), R.drawable.ic_close, null);
         if (closeIcon != null) {
             closeIcon.setBounds(0, 0, closeIcon.getIntrinsicWidth(), closeIcon.getIntrinsicHeight());
@@ -107,7 +118,7 @@ public class MainActivity extends AppCompatActivity {
         database = AppDatabase.getInstance(this);
         executorService = Executors.newSingleThreadExecutor();
 
-        // Khởi tạo danh sách
+        allMoviesFromDB = new ArrayList<>();
         allLocalMovies = new ArrayList<>();
         newMovies = new ArrayList<>();
         upcomingMovies = new ArrayList<>();
@@ -121,11 +132,95 @@ public class MainActivity extends AppCompatActivity {
             }
         }).start();
     }
+    private void setupPaginationListeners() {
+        btnPrevPage.setOnClickListener(v -> {
+            if (currentPage > 1) {
+                currentPage--;
+                loadCurrentPage();
+            }
+        });
+
+        btnNextPage.setOnClickListener(v -> {
+            if (currentPage < totalPages) {
+                currentPage++;
+                loadCurrentPage();
+            }
+        });
+    }
+    private void setupPagination() {
+        if (allMoviesFromDB != null && !allMoviesFromDB.isEmpty()) {
+            int totalMovies = allMoviesFromDB.size();
+            totalPages = (int) Math.ceil((double) totalMovies / itemsPerPage);
+            currentPage = 1;
+
+            Log.d("Pagination", "Total movies: " + totalMovies + ", Total pages: " + totalPages);
+        }
+    }
+    private void setupAllMoviesAdapter() {
+        loadCurrentPage();
+    }
+
+    private void loadCurrentPage() {
+        if (allMoviesFromDB == null || allMoviesFromDB.isEmpty()) {
+            return;
+        }
+
+        loadingAllMovies.setVisibility(View.VISIBLE);
+
+        executorService.execute(() -> {
+            try {
+                // Calculate start and end indices
+                int startIndex = (currentPage - 1) * itemsPerPage;
+                int endIndex = Math.min(startIndex + itemsPerPage, allMoviesFromDB.size());
+
+                // Get movies for current page
+                List<Movie> currentPageMovies = new ArrayList<>(
+                        allMoviesFromDB.subList(startIndex, endIndex)
+                );
+
+                runOnUiThread(() -> {
+                    // Update adapter
+                    if (adapterAllMovies == null) {
+                        adapterAllMovies = new PaginatedMovieAdapter(MainActivity.this, currentPageMovies);
+                        recyclerViewAllMovies.setAdapter(adapterAllMovies);
+                    } else {
+                        adapterAllMovies.updateMovies(currentPageMovies);
+                    }
+
+                    // Update pagination controls
+                    updatePaginationControls();
+
+                    loadingAllMovies.setVisibility(View.GONE);
+                });
+
+            } catch (Exception e) {
+                Log.e("MainActivity", "Error loading current page: " + e.getMessage());
+                runOnUiThread(() -> {
+                    loadingAllMovies.setVisibility(View.GONE);
+                    Toast.makeText(MainActivity.this, "Lỗi khi tải trang", Toast.LENGTH_SHORT).show();
+                });
+            }
+        });
+    }
+    private void updatePaginationControls() {
+        // Update page info
+        pageInfoText.setText("Trang " + currentPage + " / " + totalPages);
+
+        // Update button states
+        btnPrevPage.setEnabled(currentPage > 1);
+        btnNextPage.setEnabled(currentPage < totalPages);
+
+        // Visual feedback for disabled buttons
+        btnPrevPage.setAlpha(currentPage > 1 ? 1.0f : 0.5f);
+        btnNextPage.setAlpha(currentPage < totalPages ? 1.0f : 0.5f);
+
+        // Show/hide pagination controls if needed
+        paginationControls.setVisibility(totalPages > 1 ? View.VISIBLE : View.GONE);
+    }
 
     private void initViews() {
         bottomAppBar = findViewById(R.id.app_bar);
 
-        // Bottom navigation views
         btnHistory = findViewById(R.id.btn_history);
         btnFavorites = findViewById(R.id.btn_favorites);
         btnSearch = findViewById(R.id.btn_search);
@@ -133,7 +228,6 @@ public class MainActivity extends AppCompatActivity {
         btnMain = findViewById(R.id.btn_center);
         fabHome = findViewById(R.id.fab_home);
 
-        // Content views
         recyclerViewNewMovies = findViewById(R.id.view1);
         recyclerViewNewMovies.setLayoutManager(new LinearLayoutManager(this, LinearLayoutManager.HORIZONTAL, false));
 
@@ -142,10 +236,10 @@ public class MainActivity extends AppCompatActivity {
 
         loading1 = findViewById(R.id.loading1);
         loading2 = findViewById(R.id.loading2);
-        // titles động
+
         newMoviesTitle = findViewById(R.id.textView);
         upcomingTitle = findViewById(R.id.textView8);
-        // Search views
+
         homeSearchEditText = findViewById(R.id.homeSearchEditText);
         homeSearchRecyclerView = findViewById(R.id.homeSearchRecyclerView);
         homeSearchResultsContainer = findViewById(R.id.homeSearchResultsContainer);
@@ -155,36 +249,54 @@ public class MainActivity extends AppCompatActivity {
 
         // Setup search RecyclerView với GridLayoutManager
         homeSearchRecyclerView.setLayoutManager(new GridLayoutManager(this, 2));
+
+        recyclerViewAllMovies = findViewById(R.id.viewAllMovies);
+        recyclerViewAllMovies.setLayoutManager(new GridLayoutManager(this, 2));
+
+        loadingAllMovies = findViewById(R.id.loadingAllMovies);
+        allMoviesTitle = findViewById(R.id.allMoviesTitle);
+
+        paginationControls = findViewById(R.id.paginationControls);
+        pageInfoText = findViewById(R.id.pageInfoText);
+        btnPrevPage = findViewById(R.id.btnPrevPage);
+        btnNextPage = findViewById(R.id.btnNextPage);
     }
 
     private void loadMoviesFromDatabase() {
         loading1.setVisibility(View.VISIBLE);
         loading2.setVisibility(View.VISIBLE);
+        loadingAllMovies.setVisibility(View.VISIBLE); // THÊM DÒNG NÀY
 
         executorService.execute(() -> {
             try {
-                // Lấy tất cả phim từ database
                 List<Movie> movies = database.movieDao().getAllMovies();
 
                 if (movies != null && !movies.isEmpty()) {
                     allLocalMovies.clear();
                     allLocalMovies.addAll(movies);
 
-                    // ===== SỬ DỤNG APPROACH 3: Phân loại thông minh =====
+                    // ===== THÊM MỚI: Setup All Movies Pagination =====
+                    allMoviesFromDB.clear();
+                    allMoviesFromDB.addAll(movies);
+                    setupPagination();
+
                     divideMoviesIntoSmartCategories(movies);
 
                     runOnUiThread(() -> {
                         setupNewMoviesAdapter();
                         setupUpcomingMoviesAdapter();
+                        setupAllMoviesAdapter(); // THÊM DÒNG NÀY
                         updateCategoryTitles();
 
                         loading1.setVisibility(View.GONE);
                         loading2.setVisibility(View.GONE);
+                        loadingAllMovies.setVisibility(View.GONE); // THÊM DÒNG NÀY
                     });
                 } else {
                     runOnUiThread(() -> {
                         loading1.setVisibility(View.GONE);
                         loading2.setVisibility(View.GONE);
+                        loadingAllMovies.setVisibility(View.GONE); // THÊM DÒNG NÀY
                         Toast.makeText(MainActivity.this, "Không có phim nào trong database", Toast.LENGTH_SHORT).show();
                     });
                 }
@@ -194,13 +306,14 @@ public class MainActivity extends AppCompatActivity {
                 runOnUiThread(() -> {
                     loading1.setVisibility(View.GONE);
                     loading2.setVisibility(View.GONE);
+                    loadingAllMovies.setVisibility(View.GONE); // THÊM DÒNG NÀY
                     Toast.makeText(MainActivity.this, "Lỗi khi tải dữ liệu phim", Toast.LENGTH_SHORT).show();
                 });
             }
         });
     }
 
-    // ===== APPROACH 3: SMART CATEGORIZATION =====
+
     private void divideMoviesIntoSmartCategories(List<Movie> movies) {
         newMovies.clear();
         upcomingMovies.clear();
@@ -504,21 +617,21 @@ public class MainActivity extends AppCompatActivity {
 
     // ===== DYNAMIC CATEGORY TITLES =====
     private void updateCategoryTitles() {
-        // UNCOMMENT PHẦN NÀY:
-        if (newMoviesTitle != null && upcomingTitle != null) {
+        if (newMoviesTitle != null && upcomingTitle != null && allMoviesTitle != null) {
             SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
             int currentUserId = prefs.getInt("user_id", -1);
 
             if (currentUserId != -1) {
                 newMoviesTitle.setText("⭐ Đề xuất cho bạn");
                 upcomingTitle.setText("🔍 Khám phá thêm");
+                allMoviesTitle.setText("📚 Tất cả phim (" + allMoviesFromDB.size() + ")"); // THÊM DÒNG NÀY
             } else {
                 newMoviesTitle.setText("🎬 Phim chất lượng cao");
                 upcomingTitle.setText("🎯 Phim thịnh hành");
+                allMoviesTitle.setText("📚 Tất cả phim (" + allMoviesFromDB.size() + ")"); // THÊM DÒNG NÀY
             }
         }
 
-        // Giữ nguyên phần log
         SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
         int currentUserId = prefs.getInt("user_id", -1);
 

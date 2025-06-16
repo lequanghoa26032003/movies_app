@@ -5,7 +5,6 @@
     android:id="@+id/mainScrollView"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-
     android:background="@drawable/gradirent_color_background">
 
     <LinearLayout
@@ -90,7 +89,6 @@
 
             </androidx.constraintlayout.widget.ConstraintLayout>
 
-            <!-- ❌ XÓA BUTTON, chỉ giữ một khoảng trống nhỏ -->
             <View
                 android:layout_width="match_parent"
                 android:layout_height="16dp" />
@@ -174,7 +172,6 @@
                     android:minHeight="200dp"
                     android:paddingStart="12dp"
                     android:paddingEnd="12dp"
-                    android:paddingBottom="32dp"
                     app:layout_constraintBottom_toBottomOf="parent"
                     app:layout_constraintEnd_toEndOf="parent"
                     app:layout_constraintStart_toStartOf="parent"
@@ -192,6 +189,112 @@
                     app:layout_constraintTop_toTopOf="@+id/view2" />
 
             </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- ===== THÊM MỚI: TẤT CẢ PHIM VỚI PHÂN TRANG ===== -->
+            <TextView
+                android:id="@+id/allMoviesTitle"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="📚 Tất cả phim"
+                android:textColor="#ffc107"
+                android:layout_marginBottom="12dp"
+                android:layout_marginTop="32dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:textSize="18sp"
+                android:textStyle="bold" />
+
+            <androidx.constraintlayout.widget.ConstraintLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content">
+
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/viewAllMovies"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:clipToPadding="false"
+                    android:minHeight="400dp"
+                    android:paddingStart="12dp"
+                    android:paddingEnd="12dp"
+                    android:nestedScrollingEnabled="false"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+                <ProgressBar
+                    android:id="@+id/loadingAllMovies"
+                    style="?android:attr/progressBarStyle"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:visibility="gone"
+                    app:layout_constraintTop_toTopOf="parent"
+                    app:layout_constraintBottom_toBottomOf="parent"
+                    app:layout_constraintStart_toStartOf="parent"
+                    app:layout_constraintEnd_toEndOf="parent" />
+
+            </androidx.constraintlayout.widget.ConstraintLayout>
+
+            <!-- ===== PAGINATION CONTROLS ===== -->
+            <LinearLayout
+                android:id="@+id/paginationControls"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:layout_marginStart="16dp"
+                android:layout_marginEnd="16dp"
+                android:layout_marginBottom="32dp"
+                android:gravity="center"
+                android:orientation="horizontal"
+                android:visibility="gone">
+
+                <Button
+                    android:id="@+id/btnPrevPage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="42dp"
+                    android:layout_marginEnd="12dp"
+                    android:background="@drawable/pagination_button_bg"
+                    android:minWidth="90dp"
+                    android:text="◀ Trước"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:elevation="3dp" />
+
+                <LinearLayout
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:background="@drawable/page_info_bg"
+                    android:paddingStart="16dp"
+                    android:paddingTop="10dp"
+                    android:paddingEnd="16dp"
+                    android:paddingBottom="10dp"
+                    android:elevation="2dp">
+
+                    <TextView
+                        android:id="@+id/pageInfoText"
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:text="Trang 1 / 1"
+                        android:textColor="@android:color/white"
+                        android:textSize="14sp"
+                        android:textStyle="bold" />
+
+                </LinearLayout>
+
+                <Button
+                    android:id="@+id/btnNextPage"
+                    android:layout_width="wrap_content"
+                    android:layout_height="42dp"
+                    android:layout_marginStart="12dp"
+                    android:background="@drawable/pagination_button_bg"
+                    android:minWidth="90dp"
+                    android:text="Sau ▶"
+                    android:textColor="@android:color/white"
+                    android:textSize="14sp"
+                    android:textStyle="bold"
+                    android:elevation="3dp" />
+
+            </LinearLayout>
 
         </LinearLayout>
 
