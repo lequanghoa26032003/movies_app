@@ -252,9 +252,9 @@
 
         </LinearLayout>
 
-        <!-- Detailed Statistics -->
+        <!-- Top 10 Movies Card -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/detailedStatsCard"
+            android:id="@+id/top10MoviesCard"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_margin="16dp"
@@ -273,7 +273,7 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Thống kê Chi tiết"
+                    android:text="🏆 Top 10 Phim Xem Nhiều Nhất"
                     android:textColor="@android:color/black"
                     android:textSize="18sp"
                     android:textStyle="bold" />
@@ -284,79 +284,12 @@
                     android:layout_marginVertical="8dp"
                     android:background="@android:color/darker_gray" />
 
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Phim được xem nhiều nhất:"
-                        android:textColor="@android:color/darker_gray"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:id="@+id/mostViewedMovieText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="Avengers: Endgame"
-                        android:textColor="@android:color/black"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
-
-                <LinearLayout
+                <androidx.recyclerview.widget.RecyclerView
+                    android:id="@+id/top10MoviesRecyclerView"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
                     android:layout_marginTop="8dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Người dùng hoạt động nhất:"
-                        android:textColor="@android:color/darker_gray"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:id="@+id/mostActiveUserText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="user123"
-                        android:textColor="@android:color/black"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
-
-                <LinearLayout
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:orientation="horizontal">
-
-                    <TextView
-                        android:layout_width="0dp"
-                        android:layout_height="wrap_content"
-                        android:layout_weight="1"
-                        android:text="Xu hướng đăng ký:"
-                        android:textColor="@android:color/darker_gray"
-                        android:textSize="14sp" />
-
-                    <TextView
-                        android:id="@+id/registrationTrendText"
-                        android:layout_width="wrap_content"
-                        android:layout_height="wrap_content"
-                        android:text="+15% so với tháng trước"
-                        android:textColor="@color/green"
-                        android:textSize="14sp"
-                        android:textStyle="bold" />
-
-                </LinearLayout>
+                    android:nestedScrollingEnabled="false" />
 
             </LinearLayout>
 
@@ -372,7 +305,7 @@
             android:weightSum="2"
             app:layout_constraintEnd_toEndOf="parent"
             app:layout_constraintStart_toStartOf="parent"
-            app:layout_constraintTop_toBottomOf="@id/detailedStatsCard">
+            app:layout_constraintTop_toBottomOf="@id/top10MoviesCard">
 
             <Button
                 android:id="@+id/generateReportButton"
@@ -398,11 +331,11 @@
 
         </LinearLayout>
 
-        <!-- Chart Placeholder -->
+        <!-- Interactive Chart Card -->
         <androidx.cardview.widget.CardView
-            android:id="@+id/chartCard"
+            android:id="@+id/interactiveChartCard"
             android:layout_width="match_parent"
-            android:layout_height="200dp"
+            android:layout_height="wrap_content"
             android:layout_margin="16dp"
             app:cardCornerRadius="12dp"
             app:cardElevation="4dp"
@@ -412,33 +345,73 @@
 
             <LinearLayout
                 android:layout_width="match_parent"
-                android:layout_height="match_parent"
-                android:gravity="center"
+                android:layout_height="wrap_content"
                 android:orientation="vertical"
                 android:padding="16dp">
 
-                <ImageView
-                    android:layout_width="64dp"
-                    android:layout_height="64dp"
-                    android:src="@drawable/ic_chart"
-                    app:tint="@android:color/darker_gray" />
-
-                <TextView
-                    android:layout_width="wrap_content"
+                <!-- Chart Title & Time Selector -->
+                <LinearLayout
+                    android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:layout_marginTop="16dp"
-                    android:text="Biểu đồ Thống kê"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="16sp"
-                    android:textStyle="bold" />
+                    android:orientation="horizontal"
+                    android:gravity="center_vertical">
 
-                <TextView
-                    android:layout_width="wrap_content"
-                    android:layout_height="wrap_content"
-                    android:layout_marginTop="8dp"
-                    android:text="Tính năng đang phát triển"
-                    android:textColor="@android:color/darker_gray"
-                    android:textSize="12sp" />
+                    <TextView
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_weight="1"
+                        android:text="📈 Biểu đồ Thống kê"
+                        android:textColor="@android:color/black"
+                        android:textSize="18sp"
+                        android:textStyle="bold" />
+
+                    <!-- Time Period Selector -->
+                    <LinearLayout
+                        android:layout_width="wrap_content"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:background="@drawable/bg_circle_dark"
+                        android:padding="4dp">
+
+                        <Button
+                            android:id="@+id/btnDay"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_margin="2dp"
+                            android:background="@drawable/btn_background"
+                            android:text="Ngày"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp" />
+
+                        <Button
+                            android:id="@+id/btnWeek"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_margin="2dp"
+                            android:background="@drawable/btn_background"
+                            android:text="Tuần"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp" />
+
+                        <Button
+                            android:id="@+id/btnMonth"
+                            android:layout_width="wrap_content"
+                            android:layout_height="32dp"
+                            android:layout_margin="2dp"
+                            android:background="@drawable/btn_background"
+                            android:text="Tháng"
+                            android:textColor="@android:color/white"
+                            android:textSize="12sp" />
+
+                    </LinearLayout>
+                </LinearLayout>
+
+                <!-- MPAndroidChart -->
+                <com.github.mikephil.charting.charts.LineChart
+                    android:id="@+id/statisticsChart"
+                    android:layout_width="match_parent"
+                    android:layout_height="250dp"
+                    android:layout_marginTop="16dp" />
 
             </LinearLayout>
 

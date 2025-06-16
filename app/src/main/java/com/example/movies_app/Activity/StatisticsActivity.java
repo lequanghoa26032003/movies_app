@@ -13,26 +13,50 @@ import android.widget.Toast;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.cardview.widget.CardView;
 import androidx.core.content.FileProvider;
+import androidx.recyclerview.widget.LinearLayoutManager;
+import androidx.recyclerview.widget.RecyclerView;
 
+import com.example.movies_app.Adapter.Top10MoviesAdapter;
 import com.example.movies_app.Database.AppDatabase;
+import com.example.movies_app.Database.entity.Movie;
 import com.example.movies_app.R;
 import com.example.movies_app.service.ReportExportService;
+import com.github.mikephil.charting.charts.LineChart;
+import com.github.mikephil.charting.components.Description;
+import com.github.mikephil.charting.components.XAxis;
+import com.github.mikephil.charting.components.YAxis;
+import com.github.mikephil.charting.data.Entry;
+import com.github.mikephil.charting.data.LineData;
+import com.github.mikephil.charting.data.LineDataSet;
+import com.github.mikephil.charting.formatter.IndexAxisValueFormatter;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.Calendar;
+import java.util.List;
 import java.util.Locale;
 
-public class StatisticsActivity extends AppCompatActivity {
+public class StatisticsActivity extends AppCompatActivity implements Top10MoviesAdapter.OnMovieClickListener {
 
+    // UI Components
     private ImageView backButton;
     private TextView totalUsersText, totalMoviesText, activeUsersText, totalViewsText;
-    private TextView mostViewedMovieText, mostActiveUserText, registrationTrendText;
     private CardView usersCard, moviesCard, viewsCard, trendsCard;
-
-    // THÊM CÁC BUTTON
     private Button generateReportButton, exportDataButton;
+    private Button btnDay, btnWeek, btnMonth;
+    private RecyclerView top10MoviesRecyclerView;
+    private LineChart statisticsChart;
 
+    // Data & Services
     private AppDatabase database;
     private ReportExportService reportExportService;
+    private Top10MoviesAdapter top10MoviesAdapter;
+    private ChartPeriod currentChartPeriod = ChartPeriod.WEEK;
+
+    // Chart Period Enum
+    public enum ChartPeriod {
+        DAY, WEEK, MONTH
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -44,7 +68,11 @@ public class StatisticsActivity extends AppCompatActivity {
 
         initViews();
         setupClickListeners();
+        setupTop10Movies();
+        initChart();
         loadStatistics();
+        loadTop10Movies();
+        loadChartData(currentChartPeriod);
     }
 
     private void initViews() {
@@ -61,26 +89,84 @@ public class StatisticsActivity extends AppCompatActivity {
         totalMoviesText = findViewById(R.id.totalMoviesText);
         activeUsersText = findViewById(R.id.activeUsersText);
         totalViewsText = findViewById(R.id.totalViewsText);
-        mostViewedMovieText = findViewById(R.id.mostViewedMovieText);
-        mostActiveUserText = findViewById(R.id.mostActiveUserText);
-        registrationTrendText = findViewById(R.id.registrationTrendText);
 
-        // THÊM CÁC BUTTON
+        // Action buttons
         generateReportButton = findViewById(R.id.generateReportButton);
         exportDataButton = findViewById(R.id.exportDataButton);
+
+        // Chart components
+        btnDay = findViewById(R.id.btnDay);
+        btnWeek = findViewById(R.id.btnWeek);
+        btnMonth = findViewById(R.id.btnMonth);
+        statisticsChart = findViewById(R.id.statisticsChart);
+
+        // Top 10 movies
+        top10MoviesRecyclerView = findViewById(R.id.top10MoviesRecyclerView);
     }
 
     private void setupClickListeners() {
         backButton.setOnClickListener(v -> finish());
 
+        // Card click listeners for detailed info
         usersCard.setOnClickListener(v -> showUserStatisticsDetail());
         moviesCard.setOnClickListener(v -> showMovieStatisticsDetail());
         viewsCard.setOnClickListener(v -> showViewStatisticsDetail());
         trendsCard.setOnClickListener(v -> showTrendStatisticsDetail());
 
-        // THÊM CLICK LISTENER CHO CÁC BUTTON
+        // Action buttons
         generateReportButton.setOnClickListener(v -> showReportOptions());
         exportDataButton.setOnClickListener(v -> showExportOptions());
+
+        // Chart period selectors
+        btnDay.setOnClickListener(v -> selectChartPeriod(ChartPeriod.DAY));
+        btnWeek.setOnClickListener(v -> selectChartPeriod(ChartPeriod.WEEK));
+        btnMonth.setOnClickListener(v -> selectChartPeriod(ChartPeriod.MONTH));
+    }
+
+    private void setupTop10Movies() {
+        top10MoviesAdapter = new Top10MoviesAdapter(this, new ArrayList<>());
+        top10MoviesAdapter.setOnMovieClickListener(this);
+
+        LinearLayoutManager layoutManager = new LinearLayoutManager(this);
+        top10MoviesRecyclerView.setLayoutManager(layoutManager);
+        top10MoviesRecyclerView.setAdapter(top10MoviesAdapter);
+    }
+
+    private void initChart() {
+        // Configure chart appearance
+        statisticsChart.setTouchEnabled(true);
+        statisticsChart.setDragEnabled(true);
+        statisticsChart.setScaleEnabled(true);
+        statisticsChart.setPinchZoom(true);
+        statisticsChart.setDrawGridBackground(false);
+        statisticsChart.setBackgroundColor(Color.WHITE);
+
+        // Description
+        Description description = new Description();
+        description.setText("Thống kê lượt xem");
+        description.setTextColor(Color.GRAY);
+        description.setTextSize(12f);
+        statisticsChart.setDescription(description);
+
+        // X-axis configuration
+        XAxis xAxis = statisticsChart.getXAxis();
+        xAxis.setPosition(XAxis.XAxisPosition.BOTTOM);
+        xAxis.setTextColor(Color.BLACK);
+        xAxis.setDrawGridLines(false);
+        xAxis.setGranularity(1f);
+
+        // Y-axis configuration
+        YAxis leftYAxis = statisticsChart.getAxisLeft();
+        leftYAxis.setTextColor(Color.BLACK);
+        leftYAxis.setDrawGridLines(true);
+        leftYAxis.setGridColor(Color.LTGRAY);
+
+        YAxis rightYAxis = statisticsChart.getAxisRight();
+        rightYAxis.setEnabled(false);
+
+        // Legend
+        statisticsChart.getLegend().setEnabled(true);
+        statisticsChart.getLegend().setTextColor(Color.BLACK);
     }
 
     private void loadStatistics() {
@@ -90,129 +176,253 @@ public class StatisticsActivity extends AppCompatActivity {
                 int totalUsers = database.userDao().getTotalUsersCount();
                 int activeUsers = database.userDao().getActiveUsersCount();
                 int totalMovies = database.movieDao().getTotalMoviesCount();
-
-                // SỬ DỤNG DỮ LIỆU TỪ TRƯỜNG viewCount (nếu có) hoặc fallback
                 int totalViews = getTotalViewsFromViewCount();
-                String mostViewedMovie = getMostViewedMovieFromViewCount();
-
-                // Thống kê user
-                String mostActiveUser = getMostActiveUser();
-
-                // Calculate trends
-                int newUsersThisMonth = getNewUsersThisMonth();
-                int newUsersPreviousMonth = getNewUsersPreviousMonth();
-                String trend = calculateTrend(newUsersThisMonth, newUsersPreviousMonth);
 
                 runOnUiThread(() -> {
-                    // Cập nhật dữ liệu cơ bản
-                    totalUsersText.setText(String.valueOf(totalUsers));
-                    activeUsersText.setText(String.valueOf(activeUsers));
-                    totalMoviesText.setText(String.valueOf(totalMovies));
+                    totalUsersText.setText(formatNumber(totalUsers));
+                    totalMoviesText.setText(formatNumber(totalMovies));
+                    activeUsersText.setText(formatNumber(activeUsers));
                     totalViewsText.setText(formatNumber(totalViews));
-
-                    // Cập nhật dữ liệu chi tiết
-                    mostViewedMovieText.setText(mostViewedMovie != null && !mostViewedMovie.isEmpty() ?
-                            mostViewedMovie : "Chưa có dữ liệu");
-                    mostActiveUserText.setText(mostActiveUser != null && !mostActiveUser.isEmpty() ?
-                            mostActiveUser : "Chưa có dữ liệu");
-                    registrationTrendText.setText(trend);
-
                     updateCardColors();
                 });
-
             } catch (Exception e) {
                 runOnUiThread(() ->
-                        Toast.makeText(this, "Lỗi tải thống kê: " + e.getMessage(), Toast.LENGTH_SHORT).show()
-                );
+                        Toast.makeText(this, "Lỗi tải thống kê: " + e.getMessage(), Toast.LENGTH_SHORT).show());
             }
         }).start();
     }
 
-    // PHƯƠNG THỨC LẤY DỮ LIỆU VỚI FALLBACK
-    private int getTotalViewsFromViewCount() {
-        try {
-            // Thử sử dụng viewCount trước
-            return database.movieDao().getTotalViewsFromViewCount();
-        } catch (Exception e) {
+    private void loadTop10Movies() {
+        new Thread(() -> {
             try {
-                // Fallback về cách cũ (đếm từ watch_history)
-                return database.movieDao().getTotalViewsCount();
-            } catch (Exception ex) {
-                return 0;
+                List<Movie> top10Movies = database.movieDao().getTopViewedMovies(10);
+                runOnUiThread(() -> {
+                    top10MoviesAdapter.updateData(top10Movies);
+                });
+            } catch (Exception e) {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Lỗi tải top 10 phim: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void selectChartPeriod(ChartPeriod period) {
+        currentChartPeriod = period;
+
+        // Update button states
+        updateChartButtons();
+
+        // Load new chart data
+        loadChartData(period);
+    }
+
+    private void updateChartButtons() {
+        // Reset all buttons
+        btnDay.setBackgroundResource(R.drawable.btn_background);
+        btnWeek.setBackgroundResource(R.drawable.btn_background);
+        btnMonth.setBackgroundResource(R.drawable.btn_background);
+
+        // Highlight selected button
+        switch (currentChartPeriod) {
+            case DAY:
+                btnDay.setBackgroundColor(getResources().getColor(R.color.green));
+                break;
+            case WEEK:
+                btnWeek.setBackgroundColor(getResources().getColor(R.color.green));
+                break;
+            case MONTH:
+                btnMonth.setBackgroundColor(getResources().getColor(R.color.green));
+                break;
+        }
+    }
+
+    private void loadChartData(ChartPeriod period) {
+        new Thread(() -> {
+            try {
+                List<Entry> entries = new ArrayList<>();
+                List<String> labels = new ArrayList<>();
+
+                // SỬ DỤNG DỮ LIỆU THỰC TỪ DATABASE
+                generateRealChartData(entries, labels, period);
+
+                runOnUiThread(() -> updateChart(entries, labels, period));
+            } catch (Exception e) {
+                runOnUiThread(() ->
+                        Toast.makeText(this, "Lỗi tải dữ liệu biểu đồ: " + e.getMessage(), Toast.LENGTH_SHORT).show());
+            }
+        }).start();
+    }
+
+    private void generateRealChartData(List<Entry> entries, List<String> labels, ChartPeriod period) {
+        try {
+            switch (period) {
+                case DAY:
+                    generateDailyViewData(entries, labels);
+                    break;
+                case WEEK:
+                    generateWeeklyViewData(entries, labels);
+                    break;
+                case MONTH:
+                    generateMonthlyViewData(entries, labels);
+                    break;
+            }
+        } catch (Exception e) {
+            entries.clear();
+            labels.clear();
+            runOnUiThread(() ->
+                    Toast.makeText(StatisticsActivity.this,
+                                    "Chưa có dữ liệu để hiển thị",
+                                    Toast.LENGTH_SHORT)
+                            .show()
+            );
+        }
+    }
+    private void generateDailyViewData(List<Entry> entries, List<String> labels) {
+        try {
+            // Lấy dữ liệu thực từ database cho 7 ngày gần nhất
+            Calendar cal = Calendar.getInstance();
+
+            for (int i = 6; i >= 0; i--) {
+                cal.add(Calendar.DAY_OF_MONTH, -i);
+                String date = String.format(Locale.getDefault(), "%04d-%02d-%02d",
+                        cal.get(Calendar.YEAR),
+                        cal.get(Calendar.MONTH) + 1,
+                        cal.get(Calendar.DAY_OF_MONTH));
+
+                int viewsCount = database.movieDao().getViewsCountByDate(date);
+
+                entries.add(new Entry(6 - i, viewsCount));
+                labels.add(String.format("T%d/%d",
+                        cal.get(Calendar.DAY_OF_MONTH),
+                        cal.get(Calendar.MONTH) + 1));
+
+                cal = Calendar.getInstance();
+            }
+        } catch (Exception e) {
+            for (int i = 0; i < 7; i++) {
+                entries.add(new Entry(i, 0));
+                labels.add("Ngày " + (i + 1));
+            }
+        }
+    }
+    private void generateWeeklyViewData(List<Entry> entries, List<String> labels) {
+        try {
+            Calendar cal = Calendar.getInstance();
+
+            for (int i = 7; i >= 0; i--) { // 8 tuần gần nhất
+                cal.add(Calendar.WEEK_OF_YEAR, -i);
+
+                // Lấy tuần này
+                int weekOfYear = cal.get(Calendar.WEEK_OF_YEAR);
+                int year = cal.get(Calendar.YEAR);
+
+                // Đếm số lượt xem trong tuần này
+                int viewsCount = database.movieDao().getViewsCountByWeek(year, weekOfYear);
+
+                entries.add(new Entry(7 - i, viewsCount));
+                labels.add(String.format("T%d", weekOfYear));
+
+                // Reset calendar
+                cal = Calendar.getInstance();
+            }
+        } catch (Exception e) {
+            // Fallback data
+            for (int i = 0; i < 8; i++) {
+                entries.add(new Entry(i, 0));
+                labels.add("Tuần " + (i + 1));
+            }
+        }
+    }
+    private void generateMonthlyViewData(List<Entry> entries, List<String> labels) {
+        try {
+            Calendar cal = Calendar.getInstance();
+
+            for (int i = 11; i >= 0; i--) { // 12 tháng gần nhất
+                cal.add(Calendar.MONTH, -i);
+
+                int month = cal.get(Calendar.MONTH) + 1; // Calendar.MONTH starts from 0
+                int year = cal.get(Calendar.YEAR);
+
+                // Đếm số lượt xem trong tháng này
+                int viewsCount = database.movieDao().getViewsCountByMonth(year, month);
+
+                entries.add(new Entry(11 - i, viewsCount));
+                labels.add(String.format("T%d", month));
+
+                // Reset calendar
+                cal = Calendar.getInstance();
+            }
+        } catch (Exception e) {
+            // Fallback data
+            for (int i = 0; i < 12; i++) {
+                entries.add(new Entry(i, 0));
+                labels.add("T" + (i + 1));
             }
         }
     }
 
-    private String getMostViewedMovieFromViewCount() {
-        try {
-            // Thử sử dụng viewCount trước
-            return database.movieDao().getMostViewedMovieFromViewCount();
-        } catch (Exception e) {
-            try {
-                // Fallback về cách cũ
-                return database.movieDao().getMostViewedMovieWithCount();
-            } catch (Exception ex) {
-                return "Chưa có dữ liệu";
-            }
+    private void updateChart(List<Entry> entries, List<String> labels, ChartPeriod period) {
+        if (entries.isEmpty()) {
+            statisticsChart.clear();
+            statisticsChart.invalidate();
+            return;
+        }
+
+        // Create dataset
+        LineDataSet dataSet = new LineDataSet(entries, getChartLabel(period));
+        dataSet.setColor(getResources().getColor(R.color.blue));
+        dataSet.setCircleColor(getResources().getColor(R.color.blue));
+        dataSet.setLineWidth(2f);
+        dataSet.setCircleRadius(4f);
+        dataSet.setFillColor(getResources().getColor(R.color.blue));
+        dataSet.setMode(LineDataSet.Mode.CUBIC_BEZIER);
+        dataSet.setDrawValues(true);
+        dataSet.setValueTextSize(9f);
+        dataSet.setValueTextColor(Color.BLACK);
+
+        // Create line data
+        LineData lineData = new LineData(dataSet);
+        statisticsChart.setData(lineData);
+
+        // Set X-axis labels
+        XAxis xAxis = statisticsChart.getXAxis();
+        xAxis.setValueFormatter(new IndexAxisValueFormatter(labels));
+        xAxis.setLabelCount(labels.size());
+
+        // Refresh chart
+        statisticsChart.invalidate();
+    }
+
+    private String getChartLabel(ChartPeriod period) {
+        switch (period) {
+            case DAY:
+                return "Lượt xem theo ngày";
+            case WEEK:
+                return "Lượt xem theo tuần";
+            case MONTH:
+                return "Lượt xem theo tháng";
+            default:
+                return "Lượt xem";
         }
     }
 
-    private String getMostActiveUser() {
-        try {
-            return database.userDao().getMostActiveUserWithCount();
-        } catch (Exception e) {
-            return "Chưa có dữ liệu";
-        }
+    @Override
+    public void onMovieClick(Movie movie) {
+        // Handle top 10 movie click - có thể mở DetailActivity
+        Toast.makeText(this, "Xem chi tiết phim: " + movie.getTitle(), Toast.LENGTH_SHORT).show();
+        // TODO: Bạn có thể thêm Intent để mở DetailActivity
     }
 
-    private int getNewUsersThisMonth() {
-        try {
-            return database.userDao().getNewUsersThisMonth();
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private int getNewUsersPreviousMonth() {
-        try {
-            return database.userDao().getNewUsersPreviousMonth();
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    private String calculateTrend(int thisMonth, int previousMonth) {
-        if (previousMonth == 0) {
-            return thisMonth > 0 ? "+100% (tháng đầu tiên)" : "Chưa có dữ liệu";
-        }
-
-        double percentage = ((double)(thisMonth - previousMonth) / previousMonth) * 100;
-        String sign = percentage > 0 ? "+" : "";
-        return String.format(Locale.getDefault(), "%s%.1f%% so với tháng trước", sign, percentage);
-    }
-
-    private String formatNumber(int number) {
-        if (number >= 1000000) {
-            return String.format(Locale.getDefault(), "%.1fM", number / 1000000.0);
-        } else if (number >= 1000) {
-            return String.format(Locale.getDefault(), "%.1fK", number / 1000.0);
-        } else {
-            return String.valueOf(number);
-        }
-    }
-
+    // Giữ nguyên các phương thức cũ
     private void updateCardColors() {
-        // Update card background colors based on data trends
-        usersCard.setCardBackgroundColor(Color.parseColor("#4CAF50")); // Green for positive
+        usersCard.setCardBackgroundColor(Color.parseColor("#4CAF50")); // Green
         moviesCard.setCardBackgroundColor(Color.parseColor("#2196F3")); // Blue
         viewsCard.setCardBackgroundColor(Color.parseColor("#FF9800")); // Orange
         trendsCard.setCardBackgroundColor(Color.parseColor("#9C27B0")); // Purple
     }
 
-    // ===== HIỂN THỊ CHI TIẾT THỐNG KÊ =====
-
+    // Các phương thức chi tiết thống kê (giữ nguyên từ code cũ)
     private void showUserStatisticsDetail() {
-        // CHI TIẾT THỐNG KÊ NGƯỜI DÙNG
         new Thread(() -> {
             try {
                 int totalUsers = database.userDao().getTotalUsersCount();
@@ -239,7 +449,6 @@ public class StatisticsActivity extends AppCompatActivity {
     }
 
     private void showMovieStatisticsDetail() {
-        // CHI TIẾT THỐNG KÊ PHIM
         new Thread(() -> {
             try {
                 int totalMovies = database.movieDao().getTotalMoviesCount();
@@ -268,7 +477,6 @@ public class StatisticsActivity extends AppCompatActivity {
     }
 
     private void showViewStatisticsDetail() {
-        // CHI TIẾT THỐNG KÊ LƯỢT XEM
         new Thread(() -> {
             try {
                 int totalViews = getTotalViewsFromViewCount();
@@ -281,7 +489,7 @@ public class StatisticsActivity extends AppCompatActivity {
                             "👁️ CHI TIẾT THỐNG KÊ LƯỢT XEM\n\n" +
                                     "📊 Tổng lượt xem: %s\n" +
                                     "📈 Trung bình: %.1f lượt/phim\n" +
-                                    "🎬 Số phim đã xem: %d\n" +
+                                    "🎯 Phim đã xem: %d\n" +
                                     "🏆 Phim xem nhiều nhất:\n%s",
                             formatNumber(totalViews), avgViews, viewedMovies,
                             mostViewed != null ? mostViewed : "Chưa có dữ liệu");
@@ -296,7 +504,6 @@ public class StatisticsActivity extends AppCompatActivity {
     }
 
     private void showTrendStatisticsDetail() {
-        // CHI TIẾT PHÂN TÍCH XU HƯỚNG
         new Thread(() -> {
             try {
                 int newUsersThisMonth = getNewUsersThisMonth();
@@ -325,8 +532,7 @@ public class StatisticsActivity extends AppCompatActivity {
         }).start();
     }
 
-    // ===== CHỨC NĂNG TẠO BÁO CÁO VÀ XUẤT DỮ LIỆU =====
-
+    // Giữ nguyên các phương thức báo cáo và xuất dữ liệu
     private void showReportOptions() {
         AlertDialog.Builder builder = new AlertDialog.Builder(this);
         builder.setTitle("📋 Tạo Báo Cáo");
@@ -337,7 +543,6 @@ public class StatisticsActivity extends AppCompatActivity {
         });
 
         builder.setNegativeButton("❌ Hủy", null);
-
         builder.show();
     }
 
@@ -436,7 +641,6 @@ public class StatisticsActivity extends AppCompatActivity {
         });
 
         builder.setNeutralButton("✅ OK", null);
-
         builder.show();
     }
 
@@ -471,7 +675,30 @@ public class StatisticsActivity extends AppCompatActivity {
         }
     }
 
-    // ===== CÁC PHƯƠNG THỨC HỖ TRỢ =====
+    // Helper methods từ code cũ
+    private int getTotalViewsFromViewCount() {
+        try {
+            return database.movieDao().getTotalViewsFromViewCount();
+        } catch (Exception e) {
+            try {
+                return database.movieDao().getTotalViewsCount();
+            } catch (Exception ex) {
+                return 0;
+            }
+        }
+    }
+
+    private String getMostViewedMovieFromViewCount() {
+        try {
+            return database.movieDao().getMostViewedMovieFromViewCount();
+        } catch (Exception e) {
+            try {
+                return database.movieDao().getMostViewedMovieWithCount();
+            } catch (Exception ex) {
+                return "Chưa có dữ liệu";
+            }
+        }
+    }
 
     private int getViewedMoviesCount() {
         try {
@@ -501,6 +728,22 @@ public class StatisticsActivity extends AppCompatActivity {
         }
     }
 
+    private int getNewUsersThisMonth() {
+        try {
+            return database.userDao().getNewUsersThisMonth();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
+    private int getNewUsersPreviousMonth() {
+        try {
+            return database.userDao().getNewUsersPreviousMonth();
+        } catch (Exception e) {
+            return 0;
+        }
+    }
+
     private int getMoviesAddedThisMonth() {
         try {
             return database.movieDao().getMoviesAddedLastMonth();
@@ -514,6 +757,26 @@ public class StatisticsActivity extends AppCompatActivity {
             return database.movieDao().getTotalFavoritesCount();
         } catch (Exception e) {
             return 0;
+        }
+    }
+
+    private String calculateTrend(int thisMonth, int previousMonth) {
+        if (previousMonth == 0) {
+            return thisMonth > 0 ? "+100% (tháng đầu tiên)" : "Chưa có dữ liệu";
+        }
+
+        double percentage = ((double)(thisMonth - previousMonth) / previousMonth) * 100;
+        String sign = percentage > 0 ? "+" : "";
+        return String.format(Locale.getDefault(), "%s%.1f%% so với tháng trước", sign, percentage);
+    }
+
+    private String formatNumber(int number) {
+        if (number >= 1000000) {
+            return String.format(Locale.getDefault(), "%.1fM", number / 1000000.0);
+        } else if (number >= 1000) {
+            return String.format(Locale.getDefault(), "%.1fK", number / 1000.0);
+        } else {
+            return String.valueOf(number);
         }
     }
 

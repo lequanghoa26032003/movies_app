@@ -234,7 +234,32 @@ public interface MovieDao {
 
     @Query("SELECT COUNT(*) FROM favorite_movies WHERE userId = :userId")
     int getFavoriteMoviesCountByUser(int userId);
+    @Query("SELECT COUNT(*) FROM watch_history WHERE DATE(watchDate) = :date")
+    int getViewsCountByDate(String date);
 
-    // ===== KHÔNG THÊM GÌ KHÁC VÀO ĐÂY =====
-    // Tất cả logic smart categorization đã được handle trong MainActivity
+    // Đếm lượt xem theo tuần
+    @Query("SELECT COUNT(*) FROM watch_history WHERE strftime('%Y', watchDate) = :year AND strftime('%W', watchDate) = :week")
+    int getViewsCountByWeek(int year, int week);
+
+    // Đếm lượt xem theo tháng
+    @Query("SELECT COUNT(*) FROM watch_history WHERE strftime('%Y', watchDate) = :year AND strftime('%m', watchDate) = :month")
+    int getViewsCountByMonth(int year, int month);
+
+    // Tổng viewCount của tất cả phim được thêm trong ngày
+    @Query("SELECT SUM(viewCount) FROM movies WHERE DATE(lastUpdated) = :date")
+    int getTotalViewCountByDate(String date);
+
+    // Tổng viewCount của phim được thêm trong tuần
+    @Query("SELECT SUM(viewCount) FROM movies " +
+            "WHERE strftime('%Y', lastUpdated) = :year " +
+            "AND strftime('%W', lastUpdated) = :week")
+    int getTotalViewCountByWeek(String year, String week);
+
+    // Tổng viewCount của phim được thêm trong tháng
+    @Query("SELECT SUM(viewCount) FROM movies " +
+            "WHERE strftime('%Y', lastUpdated) = :year " +
+            "AND strftime('%m', lastUpdated) = :month")
+    int getTotalViewCountByMonth(String year, String month);
+
+
 }

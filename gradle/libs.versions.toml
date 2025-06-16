@@ -22,6 +22,9 @@ circleimageview = "3.1.0"
 youtubeplayer = "12.1.0"
 webkit = "1.7.0"
 
+# MPAndroidChart library
+mpandroidchart = "3.1.0"
+
 [libraries]
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 ext-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -56,6 +59,9 @@ circleimageview = { group = "de.hdodenhof", name = "circleimageview", version.re
 # YouTube Player API
 youtubeplayer = { group = "com.pierfrancescosoffritti.androidyoutubeplayer", name = "core", version.ref = "youtubeplayer" }
 webkit = { group = "androidx.webkit", name = "webkit", version.ref = "webkit" }
+
+# MPAndroidChart library
+mpandroidchart = { group = "com.github.PhilJay", name = "MPAndroidChart", version.ref = "mpandroidchart" }
 
 [plugins]
 androidApplication = { id = "com.android.application", version.ref = "agp" }
