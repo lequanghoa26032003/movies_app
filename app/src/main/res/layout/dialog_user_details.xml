@@ -198,12 +198,14 @@
                 android:textColor="@color/black" />
         </LinearLayout>
 
+        <!-- ẨN TOÀN BỘ PHẦN BUTTONS -->
         <!-- Buttons Row -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:orientation="horizontal"
-            android:gravity="end">
+            android:gravity="end"
+            android:visibility="gone">
 
             <Button
                 android:id="@+id/btn_edit_user"
@@ -223,7 +225,6 @@
                 android:layout_marginEnd="8dp"
                 android:text="Delete"
                 android:textSize="16sp"
-
                 android:textColor="@color/white"
                 android:backgroundTint="@color/red"
                 style="@style/Widget.Material3.Button" />
@@ -234,7 +235,6 @@
                 android:layout_height="wrap_content"
                 android:text="Close"
                 android:textSize="16sp"
-
                 android:textColor="@color/black"
                 android:backgroundTint="@color/gray"
                 style="@style/Widget.Material3.Button.OutlinedButton" />
