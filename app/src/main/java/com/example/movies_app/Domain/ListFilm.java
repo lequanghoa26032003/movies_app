@@ -1,5 +1,6 @@
 package com.example.movies_app.Domain;
 
+import com.example.movies_app.Database.entity.Movie; // THÊM IMPORT NÀY
 import com.google.gson.annotations.Expose;
 import com.google.gson.annotations.SerializedName;
 import java.util.List;
@@ -10,7 +11,7 @@ public class ListFilm {
 
     @SerializedName("data")
     @Expose
-    private List<Datum> data;
+    private List<Movie> data; // ĐỔI TỪ Datum THÀNH Movie
 
     @SerializedName("metadata")
     @Expose
@@ -22,11 +23,11 @@ public class ListFilm {
     }
 
     // Getter an toàn
-    public List<Datum> getData() {
+    public List<Movie> getData() { // ĐỔI TỪ Datum THÀNH Movie
         return data != null ? data : Collections.emptyList();
     }
 
-    public void setData(List<Datum> data) {
+    public void setData(List<Movie> data) { // ĐỔI TỪ Datum THÀNH Movie
         this.data = data;
     }
 

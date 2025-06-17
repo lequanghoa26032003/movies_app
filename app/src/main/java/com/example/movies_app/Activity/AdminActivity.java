@@ -25,7 +25,6 @@ public class AdminActivity extends AppCompatActivity {
         initViews();
         setupClickListeners();
 
-        // Hiển thị thông tin admin
         SharedPreferences prefs = getSharedPreferences("user_session", MODE_PRIVATE);
         String username = prefs.getString("username", "Admin");
         welcomeText.setText("Chào mừng Admin: " + username);

@@ -1,5 +1,6 @@
 package com.example.movies_app.Activity;
 
+import android.Manifest;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.content.pm.PackageManager;
@@ -44,7 +45,6 @@ import java.util.Date;
 import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import android.Manifest;
 
 public class ProfileActivity extends AppCompatActivity {
 
@@ -1209,56 +1209,23 @@ public class ProfileActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.HISTORY_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, HistoryActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, HistoryActivity.class);
+            startActivity(intent);
         });
 
         btnFavorites.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.FAVORITES_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, FavoriteActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, FavoriteActivity.class);
+            startActivity(intent);
         });
 
         btnSearch.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.SEARCH_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, ExploreActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, ExploreActivity.class);
+            startActivity(intent);
         });
 
         btnMain.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.CENTER_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, MainActivity.class);
-                startActivity(intent);
-                finish();
-            }, 200);
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
         });
     }
 

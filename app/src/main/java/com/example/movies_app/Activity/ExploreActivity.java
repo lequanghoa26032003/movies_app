@@ -42,7 +42,6 @@ import com.example.movies_app.Adapter.FilmListAdapter;
 import com.example.movies_app.Database.AppDatabase;
 import com.example.movies_app.Database.entity.Movie;
 import com.example.movies_app.Database.entity.SearchHistory;
-import com.example.movies_app.Domain.Datum;
 import com.example.movies_app.Domain.ListFilm;
 import com.example.movies_app.Helper.BaseBottomNavigationHelper;
 import com.example.movies_app.Helper.FilterManager;
@@ -53,7 +52,6 @@ import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Calendar;
 import java.util.Collections;
 import java.util.Date;
@@ -351,39 +349,12 @@ public class ExploreActivity extends AppCompatActivity {
         }
     }
 
-    // ✅ CONVERT MOVIES TO LISTFILM FORMAT
     private ListFilm convertMoviesToListFilm(List<Movie> movies) {
         ListFilm listFilm = new ListFilm();
-        List<Datum> dataList = new ArrayList<>();
-
-        for (Movie movie : movies) {
-            Datum datum = new Datum();
-            datum.setId(movie.getId());
-            datum.setTitle(movie.getTitle());
-            datum.setPoster(movie.getPoster());
-            datum.setYear(movie.getYear());
-            datum.setCountry(movie.getCountry());
-            datum.setImdbRating(movie.getImdbRating());
-
-            // Convert genres string back to list
-            if (movie.getGenres() != null && !movie.getGenres().isEmpty()) {
-                List<String> genres = Arrays.asList(movie.getGenres().split(","));
-                datum.setGenres(genres);
-            }
-
-            // Convert images string back to list
-            if (movie.getImages() != null && !movie.getImages().isEmpty()) {
-                List<String> images = Arrays.asList(movie.getImages().split(","));
-                datum.setImages(images);
-            }
-
-            dataList.add(datum);
-        }
-
-        listFilm.setData(dataList);
+        // Không cần convert, chỉ cần set trực tiếp
+        listFilm.setData(movies);  // ✅ Đúng: ListFilm giờ nhận List<Movie>
         return listFilm;
     }
-
     // ===== CÁC PHƯƠNG THỨC KHÁC GIỮ NGUYÊN =====
     private void saveSearchHistory(String query) {
         new Thread(() -> {
@@ -534,56 +505,23 @@ public class ExploreActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnHistory.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.HISTORY_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, HistoryActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, HistoryActivity.class);
+            startActivity(intent);
         });
 
         btnFavorites.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.FAVORITES_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, FavoriteActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, FavoriteActivity.class);
+            startActivity(intent);
         });
 
         btnMain.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.CENTER_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, MainActivity.class);
-                startActivity(intent);
-                finish();
-            }, 200);
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
         });
 
         btnProfile.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.PROFILE_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, ProfileActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, ProfileActivity.class);
+            startActivity(intent);
         });
     }
 

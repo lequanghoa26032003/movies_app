@@ -187,56 +187,23 @@ public class HistoryActivity extends AppCompatActivity {
 
     private void setupBottomNavigation() {
         btnSearch.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.SEARCH_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, ExploreActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, ExploreActivity.class);
+            startActivity(intent);
         });
 
         btnFavorites.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.FAVORITES_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, FavoriteActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, FavoriteActivity.class);
+            startActivity(intent);
         });
 
         btnMain.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.CENTER_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, MainActivity.class);
-                startActivity(intent);
-                finish();
-            }, 200);
+            Intent intent = new Intent(this, MainActivity.class);
+            startActivity(intent);
         });
 
         btnProfile.setOnClickListener(v -> {
-            BaseBottomNavigationHelper.setFabPosition(
-                    bottomAppBar,
-                    fabHome,
-                    BaseBottomNavigationHelper.PROFILE_POSITION
-            );
-
-            fabHome.postDelayed(() -> {
-                Intent intent = new Intent(this, ProfileActivity.class);
-                startActivity(intent);
-            }, 200);
+            Intent intent = new Intent(this, ProfileActivity.class);
+            startActivity(intent);
         });
     }
 
